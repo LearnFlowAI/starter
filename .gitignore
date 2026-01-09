@@ -1,5 +1,30 @@
 # OS
 .DS_Store
 
-# Local-only docs or directories
+# Node / 包管理器
+node_modules/
+pnpm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Next.js
+.next/
+out/
+
+# TypeScript
+*.tsbuildinfo
+
+# 环境与私密信息
+.env
+.env.*
+
+# 编辑器与系统
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# 本地专用文档或目录
 *local*
