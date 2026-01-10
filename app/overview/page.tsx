@@ -15,7 +15,15 @@ export default function OverviewPage() {
   const totalPoints = records.reduce((sum, item) => sum + item.points, 0);
   const completedCount = records.length;
 
-  const trend = [36, 42, 28, 55, 46, 61, 52];
+  const trend = [
+    { day: 1, minutes: 36 },
+    { day: 2, minutes: 42 },
+    { day: 3, minutes: 28 },
+    { day: 4, minutes: 55 },
+    { day: 5, minutes: 46 },
+    { day: 6, minutes: 61 },
+    { day: 7, minutes: 52 }
+  ];
 
   return (
     <main className="grid-overlay min-h-screen px-6 py-10">
@@ -47,16 +55,16 @@ export default function OverviewPage() {
             <span className="text-xs text-ink/60">基础趋势图</span>
           </div>
           <div className="mt-6 space-y-4">
-            {trend.map((value, index) => (
-              <div key={`${value}-${index}`} className="space-y-2">
+            {trend.map((item) => (
+              <div key={item.day} className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-ink/60">
-                  <span>周{index + 1}</span>
-                  <span>{value} 分钟</span>
+                  <span>周{item.day}</span>
+                  <span>{item.minutes} 分钟</span>
                 </div>
                 <div className="h-2 rounded-full bg-ink/10">
                   <div
                     className="h-2 rounded-full bg-moss"
-                    style={{ width: `${value}%` }}
+                    style={{ width: `${item.minutes}%` }}
                   />
                 </div>
               </div>

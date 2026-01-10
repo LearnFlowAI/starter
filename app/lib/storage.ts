@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function useLocalState<T>(key: string, initialValue: T) {
-  const [state, setState] = useState<T>(initialValue);
+  const initialRef = useRef(initialValue);
+  const [state, setState] = useState<T>(initialRef.current);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -14,11 +15,11 @@ export function useLocalState<T>(key: string, initialValue: T) {
       try {
         setState(JSON.parse(stored) as T);
       } catch {
-        setState(initialValue);
+        setState(initialRef.current);
       }
     }
     setReady(true);
-  }, [initialValue, key]);
+  }, [key]);
 
   useEffect(() => {
     if (!ready || typeof window === "undefined") {
