@@ -9,7 +9,7 @@
     "lint": "biome lint .",
     "format": "biome format . --write",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --runInBand",
+    "test": "vitest run",
     "test:watch": "vitest",
     "prepare": "husky install"
   },

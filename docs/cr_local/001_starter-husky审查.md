@@ -40,4 +40,4 @@
 ## 4. 建议的下一步
 - [x] 在 CI 中跑 `pnpm lint && pnpm test`（已完）。
 - [x] 补充文档/钩子提示（已完）。
-- [x] 为 `pnpm test` 增加 `--runInBand`（已完，脚本已更新到 `package.json`）。
+- [x] 为 `pnpm test` 通过配置禁用 `threads`（已完，`vitest.config.ts` 设置为 `threads: false`）。
