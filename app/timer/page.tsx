@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import TopNav from "../components/TopNav";
 import { defaultTasks } from "../lib/defaults";
-import type { Task } from "../lib/models";
-import { useLocalState } from "../lib/storage";
+import { calculateSessionPoints } from "../lib/scoring";
+import type { ScoreEntry, SessionEntry, Task } from "../lib/models";
+import { uid, useLocalState } from "../lib/storage";
 
 export default function TimerPage() {
   const [tasks] = useLocalState<Task[]>("lf_tasks", defaultTasks);
@@ -18,7 +19,13 @@ export default function TimerPage() {
     "lf_timer_pause",
     0
   );
+  const [startedAt, setStartedAt] = useLocalState<string>(
+    "lf_timer_started_at",
+    ""
+  );
+  const [, setSessions] = useLocalState<SessionEntry[]>("lf_sessions", []);
   const [ready, setReady] = useState(false);
+  const [, setScores] = useLocalState<ScoreEntry[]>("lf_scores", []);
 
   const activeTask = useMemo(
     () => tasks.find((task) => task.id === activeTaskId) ?? tasks[0],
@@ -74,6 +81,8 @@ export default function TimerPage() {
                 onClick={() => {
                   if (running) {
                     setPauseCount((prev) => prev + 1);
+                  } else if (!startedAt) {
+                    setStartedAt(new Date().toISOString());
                   }
                   setRunning((prev) => !prev);
                 }}
@@ -84,9 +93,55 @@ export default function TimerPage() {
               <button
                 type="button"
                 onClick={() => {
+                  if (seconds > 0) {
+                    const entry: SessionEntry = {
+                      id: uid("ses"),
+                      taskId: activeTask.id,
+                      title: activeTask.title,
+                      subject: activeTask.subject,
+                      seconds,
+                      pauseCount,
+                      startedAt: startedAt || new Date().toISOString(),
+                      endedAt: new Date().toISOString()
+                    };
+                    setSessions((prev) => [entry, ...prev]);
+                    if (typeof window !== "undefined") {
+                      const storedSessions = window.localStorage.getItem("lf_sessions");
+                      const sessionList = storedSessions
+                        ? (JSON.parse(storedSessions) as SessionEntry[])
+                        : [];
+                      window.localStorage.setItem(
+                        "lf_sessions",
+                        JSON.stringify([entry, ...sessionList])
+                      );
+                    }
+
+                    const points = calculateSessionPoints({ seconds, pauseCount });
+                    const scoreEntry: ScoreEntry = {
+                      id: uid("scr"),
+                      sessionId: entry.id,
+                      taskId: entry.taskId,
+                      points,
+                      seconds: entry.seconds,
+                      pauseCount: entry.pauseCount,
+                      createdAt: entry.endedAt
+                    };
+                    setScores((prev) => [scoreEntry, ...prev]);
+                    if (typeof window !== "undefined") {
+                      const storedScores = window.localStorage.getItem("lf_scores");
+                      const scoreList = storedScores
+                        ? (JSON.parse(storedScores) as ScoreEntry[])
+                        : [];
+                      window.localStorage.setItem(
+                        "lf_scores",
+                        JSON.stringify([scoreEntry, ...scoreList])
+                      );
+                    }
+                  }
                   setRunning(false);
                   setSeconds(0);
                   setPauseCount(0);
+                  setStartedAt("");
                 }}
                 className="rounded-full border border-ink/20 px-5 py-2 text-sm font-medium text-ink/70 transition hover:-translate-y-0.5 hover:bg-ink/10"
               >

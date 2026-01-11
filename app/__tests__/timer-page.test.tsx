@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { vi } from "vitest";
 import TimerPage from "../timer/page";
+import { calculateSessionPoints } from "../lib/scoring";
 
 describe("TimerPage", () => {
   beforeEach(() => {
@@ -43,6 +44,61 @@ describe("TimerPage", () => {
       unmount();
       vi.runOnlyPendingTimers();
     });
+    vi.useRealTimers();
+  });
+
+  it("stores a session entry when ending a run", async () => {
+    render(<TimerPage />);
+    expect(
+      await screen.findByRole("heading", { name: "计时器" })
+    ).toBeInTheDocument();
+
+    vi.useFakeTimers();
+
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "开始" }));
+    });
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "结束并重置" }));
+    });
+
+    expect(window.localStorage.getItem("lf_sessions")).not.toBeNull();
+
+    const stored = window.localStorage.getItem("lf_sessions");
+
+    const sessions = JSON.parse(stored ?? "[]") as Array<{
+      id: string;
+      taskId: string;
+      seconds: number;
+      pauseCount: number;
+    }>;
+
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].taskId).toBe("t1");
+    expect(sessions[0].seconds).toBeGreaterThanOrEqual(3);
+    expect(sessions[0].pauseCount).toBe(0);
+
+    const scoreString = window.localStorage.getItem("lf_scores");
+    const scores = JSON.parse(scoreString ?? "[]") as Array<{
+      sessionId: string;
+      taskId: string;
+      points: number;
+    }>;
+
+    expect(scores).toHaveLength(1);
+    expect(scores[0].taskId).toBe("t1");
+    expect(scores[0].sessionId).toBe(sessions[0].id);
+    expect(scores[0].points).toBe(
+      calculateSessionPoints({
+        seconds: sessions[0].seconds,
+        pauseCount: sessions[0].pauseCount
+      })
+    );
+
     vi.useRealTimers();
   });
 });

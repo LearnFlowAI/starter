@@ -1,13 +1,26 @@
 "use client";
 
 import TopNav from "../components/TopNav";
-import type { RecordEntry } from "../lib/models";
+import type {
+  RecordEntry,
+  ScoreEntry,
+  SessionEntry
+} from "../lib/models";
+import { buildWeeklyTrend, createDailySummaries } from "../lib/daily";
 import { useLocalState } from "../lib/storage";
 
 export default function OverviewPage() {
-  const [records, , ready] = useLocalState<RecordEntry[]>("lf_records", []);
+  const [records, , recordsReady] = useLocalState<RecordEntry[]>(
+    "lf_records",
+    []
+  );
+  const [sessions, , sessionsReady] = useLocalState<SessionEntry[]>(
+    "lf_sessions",
+    []
+  );
+  const [scores, , scoresReady] = useLocalState<ScoreEntry[]>("lf_scores", []);
 
-  if (!ready) {
+  if (!recordsReady || !sessionsReady || !scoresReady) {
     return null;
   }
 
@@ -15,15 +28,12 @@ export default function OverviewPage() {
   const totalPoints = records.reduce((sum, item) => sum + item.points, 0);
   const completedCount = records.length;
 
-  const trend = [
-    { day: 1, minutes: 36 },
-    { day: 2, minutes: 42 },
-    { day: 3, minutes: 28 },
-    { day: 4, minutes: 55 },
-    { day: 5, minutes: 46 },
-    { day: 6, minutes: 61 },
-    { day: 7, minutes: 52 }
-  ];
+  const dailySummaries = createDailySummaries(sessions, scores);
+  const trend = buildWeeklyTrend(dailySummaries);
+  const labelFormatter = new Intl.DateTimeFormat("zh-CN", {
+    month: "numeric",
+    day: "numeric"
+  });
 
   return (
     <main className="grid-overlay min-h-screen px-6 py-10">
@@ -51,27 +61,68 @@ export default function OverviewPage() {
         </section>
         <section className="card rounded-3xl p-6 shadow-soft">
           <div className="flex items-center justify-between">
+            <h2 className="font-display text-2xl text-ink">日报</h2>
+            <span className="text-xs text-ink/60">近 3 天</span>
+          </div>
+          {dailySummaries.length === 0 ? (
+            <p className="mt-4 text-sm text-ink/60">
+              暂无日报数据，完成一次计时后会在这里沉淀。
+            </p>
+          ) : (
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
+              {dailySummaries.slice(0, 3).map((day) => (
+                <div
+                  key={day.date}
+                  className="rounded-2xl border border-ink/10 bg-chalk px-4 py-3 text-sm text-ink/70"
+                >
+                  <p className="text-base font-semibold text-ink">{day.date}</p>
+                  <p className="text-xs text-ink/50">
+                    {day.sessionCount} 次计时
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-ink">
+                    {Math.round(day.totalSeconds / 60)} 分钟
+                  </p>
+                  <p className="text-xs text-ink/50">{day.totalPoints} 积分</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+        <section className="card rounded-3xl p-6 shadow-soft">
+          <div className="flex items-center justify-between">
             <h2 className="font-display text-2xl text-ink">7 日趋势</h2>
             <span className="text-xs text-ink/60">基础趋势图</span>
           </div>
           <div className="mt-6 space-y-4">
-            {trend.map((item) => (
-              <div key={item.day} className="space-y-2">
-                <div className="flex items-center justify-between text-xs text-ink/60">
-                  <span>周{item.day}</span>
-                  <span>{item.minutes} 分钟</span>
+            {trend.map((point) => {
+              const label = labelFormatter.format(new Date(point.date));
+              const widthPercent = Math.min(point.minutes * 2, 100);
+              return (
+                <div
+                  key={point.date}
+                  className="space-y-2"
+                  data-testid={`trend-item-${point.date}`}
+                >
+                  <div className="flex items-center justify-between text-xs text-ink/60">
+                    <span>{label}</span>
+                    <span data-testid={`trend-minutes-${point.date}`}>
+                      {point.minutes} 分钟
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-ink/10">
+                    <div
+                      className="h-2 rounded-full bg-moss"
+                      style={{ width: `${widthPercent}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="h-2 rounded-full bg-ink/10">
-                  <div
-                    className="h-2 rounded-full bg-moss"
-                    style={{ width: `${item.minutes}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="mt-6 rounded-2xl border border-ink/10 bg-ink/5 px-4 py-3 text-sm">
-            <p className="text-ink/70">建议：周三与周五表现最佳，可复用同样的学习节奏。</p>
+            <p className="text-ink/70">
+              建议：周三与周五表现最佳，可复用同样的学习节奏。
+            </p>
           </div>
         </section>
       </div>

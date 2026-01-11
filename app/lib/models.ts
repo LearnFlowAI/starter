@@ -22,3 +22,24 @@ export type RecordEntry = {
   createdAt: string;
   points: number;
 };
+
+export type SessionEntry = {
+  id: string;
+  taskId: string;
+  title: string;
+  subject: string;
+  seconds: number;
+  pauseCount: number;
+  startedAt: string;
+  endedAt: string;
+};
+
+export type ScoreEntry = {
+  id: string;
+  sessionId: string;
+  taskId: string;
+  points: number;
+  seconds: number;
+  pauseCount: number;
+  createdAt: string;
+};
