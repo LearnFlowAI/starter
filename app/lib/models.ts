@@ -39,7 +39,7 @@ export type ScoreEntry = {
   sessionId: string;
   taskId: string;
   points: number;
-  seconds: number;
+  seconds?: number;
   pauseCount: number;
   createdAt: string;
 };

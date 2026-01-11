@@ -105,16 +105,6 @@ export default function TimerPage() {
                       endedAt: new Date().toISOString()
                     };
                     setSessions((prev) => [entry, ...prev]);
-                    if (typeof window !== "undefined") {
-                      const storedSessions = window.localStorage.getItem("lf_sessions");
-                      const sessionList = storedSessions
-                        ? (JSON.parse(storedSessions) as SessionEntry[])
-                        : [];
-                      window.localStorage.setItem(
-                        "lf_sessions",
-                        JSON.stringify([entry, ...sessionList])
-                      );
-                    }
 
                     const points = calculateSessionPoints({ seconds, pauseCount });
                     const scoreEntry: ScoreEntry = {
@@ -127,16 +117,6 @@ export default function TimerPage() {
                       createdAt: entry.endedAt
                     };
                     setScores((prev) => [scoreEntry, ...prev]);
-                    if (typeof window !== "undefined") {
-                      const storedScores = window.localStorage.getItem("lf_scores");
-                      const scoreList = storedScores
-                        ? (JSON.parse(storedScores) as ScoreEntry[])
-                        : [];
-                      window.localStorage.setItem(
-                        "lf_scores",
-                        JSON.stringify([scoreEntry, ...scoreList])
-                      );
-                    }
                   }
                   setRunning(false);
                   setSeconds(0);

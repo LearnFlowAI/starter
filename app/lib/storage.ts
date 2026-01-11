@@ -1,5 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 
+function safeParse<T>(value: string | null, fallback: T, key: string) {
+  if (!value) {
+    return fallback;
+  }
+  try {
+    return JSON.parse(value) as T;
+  } catch (error) {
+    // Log for diagnostics while falling back to the initial value.
+    // eslint-disable-next-line no-console
+    console.error(`无法解析 storage key "${key}" 的数据，已重置为初始值`, error);
+    return fallback;
+  }
+}
+
 export function useLocalState<T>(key: string, initialValue: T) {
   const initialRef = useRef(initialValue);
   const [state, setState] = useState<T>(initialRef.current);
@@ -11,13 +25,8 @@ export function useLocalState<T>(key: string, initialValue: T) {
     }
 
     const stored = window.localStorage.getItem(key);
-    if (stored) {
-      try {
-        setState(JSON.parse(stored) as T);
-      } catch {
-        setState(initialRef.current);
-      }
-    }
+    const parsed = safeParse<T>(stored, initialRef.current, key);
+    setState(parsed);
     setReady(true);
   }, [key]);
 
