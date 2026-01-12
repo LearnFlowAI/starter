@@ -7,12 +7,12 @@ import type {
 } from "../lib/models";
 import { formatDate } from "../lib/daily";
 
-describe("OverviewPage", () => {
+describe("总览页", () => {
   beforeEach(() => {
     window.localStorage.clear();
   });
 
-  it("summarizes totals from records", async () => {
+  it("根据记录汇总今日数据", async () => {
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
@@ -60,8 +60,6 @@ describe("OverviewPage", () => {
       {
         id: "ses_1",
         taskId: "t1",
-        title: "数学",
-        subject: "数学",
         seconds: 1200,
         pauseCount: 0,
         startedAt: yesterday.toISOString(),

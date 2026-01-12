@@ -7,8 +7,6 @@ describe("createDailySummaries", () => {
       {
         id: "ses_1",
         taskId: "t1",
-        title: "数学",
-        subject: "数学",
         seconds: 1200,
         pauseCount: 1,
         startedAt: "2025-01-01T08:00:00.000Z",
@@ -17,8 +15,6 @@ describe("createDailySummaries", () => {
       {
         id: "ses_2",
         taskId: "t2",
-        title: "英语",
-        subject: "英语",
         seconds: 900,
         pauseCount: 0,
         startedAt: "2025-01-01T09:00:00.000Z",
@@ -27,8 +23,6 @@ describe("createDailySummaries", () => {
       {
         id: "ses_3",
         taskId: "t3",
-        title: "语文",
-        subject: "语文",
         seconds: 600,
         pauseCount: 2,
         startedAt: "2025-01-02T07:00:00.000Z",

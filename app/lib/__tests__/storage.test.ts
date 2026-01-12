@@ -2,12 +2,12 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { act } from "react";
 import { uid, useLocalState } from "../storage";
 
-describe("useLocalState", () => {
+describe("useLocalState 钩子", () => {
   beforeEach(() => {
     window.localStorage.clear();
   });
 
-  it("reads initial value and becomes ready after effect", async () => {
+  it("读取初始值并在副作用后就绪", async () => {
     const { result } = renderHook(() => useLocalState("lf_test", ["a"]));
 
     expect(result.current[0]).toEqual(["a"]);
@@ -17,7 +17,7 @@ describe("useLocalState", () => {
     });
   });
 
-  it("prefers stored value when present", async () => {
+  it("存在存储值时优先使用存储值", async () => {
     window.localStorage.setItem("lf_test", JSON.stringify(["stored"]));
 
     const { result } = renderHook(() => useLocalState("lf_test", ["a"]));
@@ -29,7 +29,7 @@ describe("useLocalState", () => {
     expect(result.current[0]).toEqual(["stored"]);
   });
 
-  it("persists updates to localStorage", async () => {
+  it("更新时写入 localStorage", async () => {
     const { result } = renderHook(() => useLocalState("lf_test", ["a"]));
 
     await waitFor(() => {
@@ -46,8 +46,8 @@ describe("useLocalState", () => {
   });
 });
 
-describe("uid", () => {
-  it("adds prefix and unique suffix", () => {
+describe("uid 工具函数", () => {
+  it("添加前缀并生成唯一后缀", () => {
     const value = uid("task");
     expect(value.startsWith("task_")).toBe(true);
     expect(value.length).toBeGreaterThan("task_".length);

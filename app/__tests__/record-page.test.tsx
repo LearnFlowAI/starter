@@ -2,12 +2,12 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import RecordPage from "../record/page";
 
-describe("RecordPage", () => {
+describe("记录页", () => {
   beforeEach(() => {
     window.localStorage.clear();
   });
 
-  it("shows empty state when no records", async () => {
+  it("无记录时展示空状态", async () => {
     render(<RecordPage />);
 
     expect(await screen.findByText("记录列表")).toBeInTheDocument();
@@ -16,7 +16,7 @@ describe("RecordPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("creates a record and selects it", async () => {
+  it("创建记录并选中", async () => {
     const user = userEvent.setup();
     render(<RecordPage />);
 

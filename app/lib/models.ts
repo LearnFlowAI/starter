@@ -26,8 +26,6 @@ export type RecordEntry = {
 export type SessionEntry = {
   id: string;
   taskId: string;
-  title: string;
-  subject: string;
   seconds: number;
   pauseCount: number;
   startedAt: string;

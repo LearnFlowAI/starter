@@ -2,12 +2,12 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import TasksPage from "../tasks/page";
 
-describe("TasksPage", () => {
+describe("任务页", () => {
   beforeEach(() => {
     window.localStorage.clear();
   });
 
-  it("renders default tasks after hydration", async () => {
+  it("水合后渲染默认任务", async () => {
     render(<TasksPage />);
 
     expect(
@@ -17,7 +17,7 @@ describe("TasksPage", () => {
     expect(screen.getByText(/当前专注：数学口算 20 分钟/)).toBeInTheDocument();
   });
 
-  it("adds a new task and sets it as active", async () => {
+  it("新增任务并设为当前任务", async () => {
     const user = userEvent.setup();
     render(<TasksPage />);
 
@@ -36,7 +36,7 @@ describe("TasksPage", () => {
     expect(screen.getByText(/当前专注：阅读理解/)).toBeInTheDocument();
   });
 
-  it("edits an existing task", async () => {
+  it("编辑已有任务", async () => {
     const user = userEvent.setup();
     render(<TasksPage />);
 
@@ -60,7 +60,7 @@ describe("TasksPage", () => {
     expect(screen.getByText("英语精读")).toBeInTheDocument();
   });
 
-  it("deletes a task", async () => {
+  it("删除任务", async () => {
     const user = userEvent.setup();
     render(<TasksPage />);
 

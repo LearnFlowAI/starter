@@ -97,8 +97,6 @@ export default function TimerPage() {
                     const entry: SessionEntry = {
                       id: uid("ses"),
                       taskId: activeTask.id,
-                      title: activeTask.title,
-                      subject: activeTask.subject,
                       seconds,
                       pauseCount,
                       startedAt: startedAt || new Date().toISOString(),
