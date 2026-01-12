@@ -3,12 +3,12 @@ import { vi } from "vitest";
 import TimerPage from "../timer/page";
 import { calculateSessionPoints } from "../lib/scoring";
 
-describe("TimerPage", () => {
+describe("计时页", () => {
   beforeEach(() => {
     window.localStorage.clear();
   });
 
-  it("runs, pauses, and resets the timer", async () => {
+  it("计时可开始、暂停并重置", async () => {
     const { unmount } = render(<TimerPage />);
     expect(
       await screen.findByRole("heading", { name: "计时器" })
@@ -47,7 +47,7 @@ describe("TimerPage", () => {
     vi.useRealTimers();
   });
 
-  it("stores a session entry when ending a run", async () => {
+  it("结束计时后保存会话记录", async () => {
     render(<TimerPage />);
     expect(
       await screen.findByRole("heading", { name: "计时器" })
@@ -100,5 +100,26 @@ describe("TimerPage", () => {
     );
 
     vi.useRealTimers();
+  });
+
+  it("结束时秒数为 0 不应保存会话", async () => {
+    render(<TimerPage />);
+    expect(
+      await screen.findByRole("heading", { name: "计时器" })
+    ).toBeInTheDocument();
+
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "结束并重置" }));
+    });
+
+    const sessions = JSON.parse(
+      window.localStorage.getItem("lf_sessions") ?? "[]"
+    ) as Array<unknown>;
+    const scores = JSON.parse(
+      window.localStorage.getItem("lf_scores") ?? "[]"
+    ) as Array<unknown>;
+
+    expect(sessions).toHaveLength(0);
+    expect(scores).toHaveLength(0);
   });
 });
