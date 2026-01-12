@@ -1,8 +1,8 @@
 import type { ScoreEntry, SessionEntry } from "../models";
-import { buildWeeklyTrend, createDailySummaries } from "../daily";
+import { buildWeeklyTrend, createDailySummaries, formatDate } from "../daily";
 
-describe("createDailySummaries", () => {
-  it("aggregates sessions and scores by day", () => {
+describe("日报汇总 createDailySummaries", () => {
+  it("按天汇总会话与积分", () => {
     const sessions = [
       {
         id: "ses_1",
@@ -75,7 +75,7 @@ describe("createDailySummaries", () => {
     expect(daily[1].scoreCount).toBe(2);
   });
 
-  it("handles days with scores but without sessions", () => {
+  it("仅有积分无会话时也能汇总", () => {
     const sessions: SessionEntry[] = [];
     const scores: ScoreEntry[] = [
       {
@@ -99,13 +99,13 @@ describe("createDailySummaries", () => {
     expect(daily[0].scoreCount).toBe(1);
   });
 
-  it("returns empty array when no data", () => {
+  it("无数据时返回空数组", () => {
     expect(createDailySummaries([], [])).toEqual([]);
   });
 });
 
-describe("buildWeeklyTrend", () => {
-  it("fills 7 days ending on provided date", () => {
+describe("趋势构建 buildWeeklyTrend", () => {
+  it("以指定日期为结尾补齐 7 天", () => {
     const now = new Date("2025-01-05T12:00:00.000Z");
     const summaries = [
       {
@@ -133,5 +133,22 @@ describe("buildWeeklyTrend", () => {
     expect(trend[5].minutes).toBe(20);
     expect(trend[4].date).toBe("2025-01-03");
     expect(trend[4].minutes).toBe(15);
+  });
+});
+
+describe("日期格式化 formatDate", () => {
+  it("格式化 Date 对象", () => {
+    const result = formatDate(new Date("2025-01-15T12:30:00.000Z"));
+    expect(result).toBe("2025-01-15");
+  });
+
+  it("格式化 ISO 字符串", () => {
+    const result = formatDate("2025-01-15T12:30:00.000Z");
+    expect(result).toBe("2025-01-15");
+  });
+
+  it("无效日期返回空字符串", () => {
+    const result = formatDate("not-a-date");
+    expect(result).toBe("");
   });
 });

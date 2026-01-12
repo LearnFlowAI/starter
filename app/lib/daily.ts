@@ -10,6 +10,11 @@ export type DailySummary = {
 
 export function formatDate(value: string | Date) {
   const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    // eslint-disable-next-line no-console
+    console.error("Invalid date input for formatDate", value);
+    return "";
+  }
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
@@ -41,6 +46,9 @@ export function createDailySummaries(
 
   for (const entry of sessions) {
     const dateKey = formatDate(entry.endedAt);
+    if (!dateKey) {
+      continue;
+    }
     const day = ensureDay(dateKey);
     day.totalSeconds += entry.seconds;
     day.sessionCount += 1;
@@ -48,10 +56,13 @@ export function createDailySummaries(
 
   for (const entry of scores) {
     const dateKey = formatDate(entry.createdAt);
+    if (!dateKey) {
+      continue;
+    }
     const day = ensureDay(dateKey);
     day.totalPoints += entry.points;
     day.scoreCount += 1;
-    if (entry.seconds && day.sessionCount === 0) {
+    if (typeof entry.seconds === "number" && day.sessionCount === 0) {
       day.totalSeconds += entry.seconds;
     }
   }
