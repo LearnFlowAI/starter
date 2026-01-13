@@ -3,21 +3,26 @@ import { vi } from "vitest";
 import TimerPage from "../timer/page";
 import { calculateSessionPoints } from "../lib/scoring";
 
+const pushMock = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock })
+}));
+
 describe("计时页", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    pushMock.mockClear();
   });
 
   it("计时可开始、暂停并重置", async () => {
     const { unmount } = render(<TimerPage />);
-    expect(
-      await screen.findByRole("heading", { name: "计时器" })
-    ).toBeInTheDocument();
+    expect(await screen.findByText("继续专注")).toBeInTheDocument();
 
     vi.useFakeTimers();
 
     act(() => {
-      fireEvent.click(screen.getByRole("button", { name: "开始" }));
+      fireEvent.click(screen.getByRole("button", { name: "继续专注" }));
     });
     act(() => {
       vi.advanceTimersByTime(2000);
@@ -28,12 +33,13 @@ describe("计时页", () => {
     ).toBeInTheDocument();
 
     act(() => {
-      fireEvent.click(screen.getByRole("button", { name: "暂停" }));
+      fireEvent.click(screen.getByRole("button", { name: "暂停并记录" }));
     });
     expect(screen.getByText("暂停次数 1")).toBeInTheDocument();
+    expect(pushMock).toHaveBeenCalledWith("/pause-reason");
 
     act(() => {
-      fireEvent.click(screen.getByRole("button", { name: "结束并重置" }));
+      fireEvent.click(screen.getByRole("button", { name: "完成并保存" }));
     });
     expect(
       screen.getByText((_, element) => element?.textContent === "00:00")
@@ -49,21 +55,19 @@ describe("计时页", () => {
 
   it("结束计时后保存会话记录", async () => {
     render(<TimerPage />);
-    expect(
-      await screen.findByRole("heading", { name: "计时器" })
-    ).toBeInTheDocument();
+    expect(await screen.findByText("继续专注")).toBeInTheDocument();
 
     vi.useFakeTimers();
 
     act(() => {
-      fireEvent.click(screen.getByRole("button", { name: "开始" }));
+      fireEvent.click(screen.getByRole("button", { name: "继续专注" }));
     });
     act(() => {
       vi.advanceTimersByTime(3000);
     });
 
     act(() => {
-      fireEvent.click(screen.getByRole("button", { name: "结束并重置" }));
+      fireEvent.click(screen.getByRole("button", { name: "完成并保存" }));
     });
 
     expect(window.localStorage.getItem("lf_sessions")).not.toBeNull();
@@ -104,12 +108,10 @@ describe("计时页", () => {
 
   it("结束时秒数为 0 不应保存会话", async () => {
     render(<TimerPage />);
-    expect(
-      await screen.findByRole("heading", { name: "计时器" })
-    ).toBeInTheDocument();
+    expect(await screen.findByText("继续专注")).toBeInTheDocument();
 
     act(() => {
-      fireEvent.click(screen.getByRole("button", { name: "结束并重置" }));
+      fireEvent.click(screen.getByRole("button", { name: "完成并保存" }));
     });
 
     const sessions = JSON.parse(
