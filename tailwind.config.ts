@@ -5,20 +5,32 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        display: ["Newsreader", "serif"],
-        body: ["IBM Plex Sans", "sans-serif"]
+        sans: ["var(--font-sans)", "var(--font-noto)", "sans-serif"],
+        display: ["var(--font-display)", "sans-serif"],
+        jakarta: ["var(--font-jakarta)", "sans-serif"]
       },
       colors: {
-        ink: "#10100F",
-        parchment: "#F6F1E6",
-        moss: "#2F5D50",
-        cider: "#C47C2C",
-        chalk: "#FBFAF7",
-        plum: "#3B2B3D"
+        primary: "#30E3CA",
+        secondary: "#FFD54F",
+        moss: "#10B981",
+        "background-light": "#F5F7FA",
+        "background-dark": "#121212",
+        "card-light": "#FFFFFF",
+        "card-dark": "#1E1E1E",
+        "text-main-light": "#333333",
+        "text-main-dark": "#E0E0E0"
+      },
+      borderRadius: {
+        xl: "1.5rem",
+        "2xl": "2rem",
+        "3xl": "2.5rem"
       },
       boxShadow: {
-        soft: "0 18px 45px rgba(16,16,15,0.12)",
-        crisp: "0 8px 20px rgba(16,16,15,0.18)"
+        soft: "0 10px 40px -10px rgba(0,0,0,0.08)",
+        glow: "0 0 20px rgba(48, 227, 202, 0.5)",
+        card: "0 4px 20px rgba(0, 0, 0, 0.03)",
+        clay:
+          "8px 8px 16px 0px rgba(0, 0, 0, 0.06), -6px -6px 14px 0px rgba(255, 255, 255, 0.9), inset 2px 2px 4px rgba(255, 255, 255, 0.5)"
       }
     }
   },

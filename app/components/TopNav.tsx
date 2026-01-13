@@ -9,19 +9,34 @@ const navItems = [
 
 export default function TopNav() {
   return (
-    <nav className="flex flex-wrap items-center justify-between gap-4">
-      <div>
-        <p className="text-xs uppercase tracking-[0.35em] text-ink/50">
-          LearnFlow Starter
-        </p>
-        <h1 className="font-display text-3xl text-ink">MVP 工作台</h1>
+    <nav className="card flex flex-col gap-4 rounded-[28px] px-5 py-4 shadow-soft sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center gap-3 sm:gap-4">
+        <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-ink/10 bg-white/80">
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            className="h-6 w-6 text-ink"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+          >
+            <path d="M4 7c0-1.1.9-2 2-2h10a4 4 0 0 1 0 8h-2" />
+            <path d="M6 19h9a3 3 0 0 0 0-6H8a2 2 0 0 1 0-4h8" />
+          </svg>
+        </span>
+        <div className="min-w-0">
+          <p className="text-xs uppercase tracking-[0.3em] text-ink/50">
+            LearnFlow Starter
+          </p>
+          <h1 className="font-display text-2xl text-ink sm:text-3xl">MVP 工作台</h1>
+        </div>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
         {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
-            className="rounded-full border border-ink/20 bg-chalk px-4 py-2 text-xs uppercase tracking-[0.2em] text-ink/70 transition hover:-translate-y-0.5 hover:bg-ink/10"
+            className="btn-ghost justify-center"
           >
             {item.label}
           </Link>

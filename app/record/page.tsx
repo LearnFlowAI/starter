@@ -1,197 +1,354 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import TopNav from "../components/TopNav";
-import { defaultTasks, interruptOptions } from "../lib/defaults";
-import type { RecordEntry, Task } from "../lib/models";
+import { useRouter } from "next/navigation";
+import { defaultTasks } from "../lib/defaults";
+import type { RecordEntry, ScoreEntry, SessionEntry, Task } from "../lib/models";
 import { uid, useLocalState } from "../lib/storage";
 
+type InterruptionLog = {
+  id: string;
+  reasonId: string;
+  duration: number;
+  createdAt: string;
+  taskId: string;
+};
+
+const REASON_MAP: Record<
+  string,
+  { label: string; icon: string; color: string; bgColor: string }
+> = {
+  distraction: {
+    label: "分心",
+    icon: "notifications_off",
+    color: "#FF9EAA",
+    bgColor: "bg-rose-50"
+  },
+  problem: {
+    label: "遇到难题",
+    icon: "psychology",
+    color: "#30E3CA",
+    bgColor: "bg-teal-50"
+  },
+  water: {
+    label: "喝水",
+    icon: "water_drop",
+    color: "#81C3FD",
+    bgColor: "bg-blue-50"
+  },
+  noise: {
+    label: "噪音",
+    icon: "graphic_eq",
+    color: "#C0A3F2",
+    bgColor: "bg-purple-50"
+  },
+  phone: {
+    label: "电子产品",
+    icon: "smartphone",
+    color: "#A78BFA",
+    bgColor: "bg-indigo-50"
+  },
+  other: {
+    label: "其他",
+    icon: "more_horiz",
+    color: "#FFD54F",
+    bgColor: "bg-yellow-50"
+  }
+};
+
 export default function RecordPage() {
-  const [tasks, setTasks] = useLocalState<Task[]>("lf_tasks", defaultTasks);
-  const [activeTaskId] = useLocalState<string>(
-    "lf_active_task",
-    defaultTasks[0]?.id ?? ""
+  const router = useRouter();
+  const [tasks, setTasks, tasksReady] = useLocalState<Task[]>(
+    "lf_tasks",
+    defaultTasks
   );
-  const [records, setRecords, ready] = useLocalState<RecordEntry[]>(
+  const [sessions, , sessionsReady] = useLocalState<SessionEntry[]>(
+    "lf_sessions",
+    []
+  );
+  const [scores, , scoresReady] = useLocalState<ScoreEntry[]>("lf_scores", []);
+  const [interruptions, , interruptionsReady] = useLocalState<
+    InterruptionLog[]
+  >(
+    "lf_interruptions",
+    []
+  );
+  const [, setRecords, recordsReady] = useLocalState<RecordEntry[]>(
     "lf_records",
     []
   );
-  const [selectedId, setSelectedId] = useState<string>("");
-  const [rating, setRating] = useState(4);
-  const [mistakeCount, setMistakeCount] = useState(1);
-  const [writingStars, setWritingStars] = useState(4);
-  const [interruptReason, setInterruptReason] = useState("");
+  const [completionLevel, setCompletionLevel] = useState<"best" | "good" | "meh">(
+    "best"
+  );
   const [note, setNote] = useState("");
   const [reviewChecked, setReviewChecked] = useState(false);
   const [fixChecked, setFixChecked] = useState(false);
   const [previewChecked, setPreviewChecked] = useState(false);
 
-  const activeTask = useMemo(
-    () => tasks.find((task) => task.id === activeTaskId) ?? tasks[0],
-    [activeTaskId, tasks]
-  );
+  const latestSession = sessions[0];
+  const activeTask = useMemo(() => {
+    if (!latestSession) {
+      return tasks[0];
+    }
+    return tasks.find((task) => task.id === latestSession.taskId) ?? tasks[0];
+  }, [latestSession, tasks]);
 
-  if (!ready || !activeTask) {
+  if (
+    !tasksReady ||
+    !sessionsReady ||
+    !scoresReady ||
+    !interruptionsReady ||
+    !recordsReady
+  ) {
     return null;
   }
 
-  const points = Math.max(0, rating * 5 - mistakeCount * 2 + writingStars * 2);
-  const selected =
-    records.find((item) => item.id === selectedId) ?? records[0];
+  if (!activeTask || !latestSession) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background-light px-6 text-center dark:bg-background-dark">
+        <div className="rounded-[2.5rem] bg-white p-8 shadow-soft dark:bg-card-dark">
+          <h1 className="text-lg font-black text-gray-800 dark:text-white">
+            暂无可结算的专注记录
+          </h1>
+          <p className="mt-2 text-sm text-gray-400">
+            完成一次计时后，这里会出现专注总结。
+          </p>
+          <button type="button"
+            onClick={() => router.push("/dashboard")}
+            className="mt-6 w-full rounded-full bg-primary py-3 text-sm font-bold text-white shadow-glow"
+          >
+            返回首页
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  const scoreForSession =
+    scores.find((score) => score.sessionId === latestSession.id)?.points ?? 0;
+
+  const sessionInterruptions = interruptions.filter(
+    (entry) => entry.taskId === latestSession.taskId
+  );
+
+  const reasonStats = sessionInterruptions.reduce<
+    Record<string, { count: number; duration: number }>
+  >((acc, curr) => {
+    if (!acc[curr.reasonId]) {
+      acc[curr.reasonId] = { count: 0, duration: 0 };
+    }
+    acc[curr.reasonId].count += 1;
+    acc[curr.reasonId].duration += curr.duration;
+    return acc;
+  }, {});
+
+  const totalInterruptions = sessionInterruptions.length;
+  const actualMins = Math.floor(latestSession.seconds / 60);
+  const actualSecs = latestSession.seconds % 60;
+  const targetMins = Math.floor(activeTask.plannedMinutes);
+
+  const rating = completionLevel === "best" ? 5 : completionLevel === "good" ? 4 : 3;
+
+  const saveRecord = () => {
+    const entry: RecordEntry = {
+      id: uid("rec"),
+      taskId: activeTask.id,
+      title: `${activeTask.title} ${activeTask.plannedMinutes} 分钟`,
+      subject: activeTask.subject,
+      minutes: Math.max(1, Math.round(latestSession.seconds / 60)),
+      rating,
+      mistakeCount: 0,
+      writingStars: rating,
+      reviewChecked,
+      fixChecked,
+      previewChecked,
+      note,
+      createdAt: new Date().toISOString(),
+      points: scoreForSession
+    };
+    setRecords((prev) => [entry, ...prev]);
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === activeTask.id ? { ...task, status: "done" } : task
+      )
+    );
+    router.push("/dashboard");
+  };
 
   return (
-    <main className="grid-overlay min-h-screen px-6 py-10">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
-        <TopNav />
-        <section className="card rounded-3xl p-6 shadow-soft">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-2xl text-ink">记录列表</h2>
-            <span className="text-xs text-ink/60">
-              {records.length} 条记录
+    <div className="min-h-screen bg-background-light px-6 py-8 dark:bg-background-dark">
+      <div className="pointer-events-none absolute right-[-20%] top-[-10%] h-72 w-72 rounded-full bg-primary/20 blur-3xl" />
+
+      <header className="mb-8 flex w-full items-center justify-between">
+        <button type="button"
+          onClick={() => router.push("/dashboard")}
+          className="rounded-full bg-white p-2 text-slate-400 shadow-sm transition-transform active:scale-90 dark:bg-card-dark"
+        >
+          <span className="material-icons-round">arrow_back</span>
+        </button>
+        <div className="text-sm font-black uppercase tracking-wide text-gray-700 dark:text-gray-200">
+          {activeTask.title}
+        </div>
+        <div className="rounded-full bg-white p-2 text-slate-400 shadow-sm dark:bg-card-dark">
+          <span className="material-icons-round">share</span>
+        </div>
+      </header>
+
+      <section className="mb-8 flex flex-col items-center">
+        <div className="relative mb-8">
+          <div className="relative flex h-32 w-32 items-center justify-center rounded-full border-8 border-white bg-gradient-to-tr from-teal-50 to-teal-100 shadow-soft dark:border-slate-800 dark:from-slate-800 dark:to-slate-700">
+            <div className="absolute inset-0 rounded-full bg-primary opacity-20 animate-ping" />
+            <span className="material-icons-round text-5xl text-primary drop-shadow-sm">
+              emoji_events
             </span>
           </div>
-          {records.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-dashed border-ink/20 bg-chalk px-4 py-6 text-center text-sm text-ink/50">
-              暂无记录，完成一次学习后会自动沉淀到这里。
+          <div className="absolute -bottom-1 -right-1 rounded-full border-2 border-white bg-secondary px-3 py-1 text-[10px] font-black text-gray-800 shadow-md dark:border-slate-800">
+            +{scoreForSession} EXP
+          </div>
+        </div>
+
+        <div className="flex w-full max-w-sm gap-4">
+          <div className="flex-1 rounded-[2.5rem] border border-gray-100 bg-white p-5 text-center shadow-sm dark:border-gray-800 dark:bg-card-dark">
+            <span className="mb-2 block text-[11px] font-black uppercase text-gray-400">
+              预计用时
+            </span>
+            <span className="text-lg font-black text-gray-600 dark:text-gray-300">
+              {targetMins}
+              <span className="ml-0.5 text-xs font-bold">分</span>
+            </span>
+          </div>
+          <div className="flex-1 rounded-[2.5rem] border border-primary/20 bg-teal-50/60 p-5 text-center shadow-sm dark:bg-teal-900/10">
+            <span className="mb-2 block text-[11px] font-black uppercase text-primary/80">
+              实际用时
+            </span>
+            <span className="text-lg font-black text-primary">
+              {actualMins}
+              <span className="ml-0.5 text-xs font-bold text-primary/60">分</span>
+              {actualSecs}
+              <span className="ml-0.5 text-xs font-bold text-primary/60">秒</span>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <div className="mb-8 space-y-4">
+        <div className="rounded-[2.8rem] border border-gray-50 bg-white p-6 shadow-soft dark:border-gray-800 dark:bg-card-dark">
+          <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-2">
+              <span className="material-icons-round text-orange-400">
+                warning_amber
+              </span>
+              <h3 className="text-base font-black text-gray-800 dark:text-white">
+                中断记录
+              </h3>
+            </div>
+            <div className="flex items-baseline">
+              <span className="text-xl font-black text-orange-500 tabular-nums">
+                {totalInterruptions}
+              </span>
+              <span className="ml-1 text-[10px] font-black uppercase text-gray-400">
+                次
+              </span>
+            </div>
+          </div>
+
+          {totalInterruptions > 0 ? (
+            <div className="mt-6 space-y-6">
+              {Object.entries(reasonStats).map(([rid, stats]) => {
+                const info = REASON_MAP[rid] || REASON_MAP.other;
+                const percentage = Math.round(
+                  (stats.count / totalInterruptions) * 100
+                );
+                return (
+                  <div key={rid} className="flex items-center gap-4">
+                    <div
+                      className={`flex h-14 w-14 items-center justify-center rounded-full ${info.bgColor} shadow-sm dark:bg-opacity-10`}
+                      style={{ color: info.color }}
+                    >
+                      <span className="material-icons-round text-2xl">
+                        {info.icon}
+                      </span>
+                    </div>
+                    <div className="flex-1">
+                      <div className="mb-2 flex items-end justify-between">
+                        <div>
+                          <h4 className="text-[15px] font-black text-gray-800 dark:text-white">
+                            {info.label}
+                          </h4>
+                          <p className="mt-0.5 text-[11px] font-bold text-gray-400">
+                            {stats.count} 次
+                          </p>
+                        </div>
+                        <span className="text-[11px] font-black text-gray-400 tabular-nums">
+                          {percentage}%
+                        </span>
+                      </div>
+                      <div className="h-2 w-full rounded-full bg-gray-50 dark:bg-gray-800">
+                        <div
+                          className="h-full rounded-full transition-all duration-1000"
+                          style={{
+                            width: `${percentage}%`,
+                            backgroundColor: info.color
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : (
-            <div className="mt-6 grid gap-4 md:grid-cols-[1.2fr_1fr]">
-              <div className="space-y-3">
-                {records.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setSelectedId(item.id)}
-                    className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition hover:-translate-y-0.5 hover:shadow-crisp ${
-                      selected?.id === item.id
-                        ? "border-moss bg-moss/10"
-                        : "border-ink/10 bg-chalk"
-                    }`}
-                  >
-                    <div>
-                      <p className="text-xs text-ink/50">{item.subject}</p>
-                      <p className="text-sm font-semibold text-ink">
-                        {item.title}
-                      </p>
-                      <p className="text-xs text-ink/40">
-                        {new Date(item.createdAt).toLocaleString()}
-                      </p>
-                    </div>
-                    <span className="text-xs text-ink/60">
-                      +{item.points} 积分
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <div className="rounded-2xl border border-ink/10 bg-white p-4">
-                {selected ? (
-                  <div className="space-y-3 text-sm text-ink/70">
-                    <div>
-                      <p className="text-xs text-ink/40">当前详情</p>
-                      <p className="text-base font-semibold text-ink">
-                        {selected.title}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2 text-xs">
-                      <span className="rounded-full border border-ink/10 px-3 py-1">
-                        {selected.subject}
-                      </span>
-                      <span className="rounded-full border border-ink/10 px-3 py-1">
-                        {selected.minutes} 分钟
-                      </span>
-                      <span className="rounded-full border border-ink/10 px-3 py-1">
-                        评分 {selected.rating}/5
-                      </span>
-                      <span className="rounded-full border border-ink/10 px-3 py-1">
-                        书写 {selected.writingStars}/5
-                      </span>
-                    </div>
-                    <p>低级错：{selected.mistakeCount}</p>
-                    <p>改错：{selected.fixChecked ? "是" : "否"}</p>
-                    <p>复习：{selected.reviewChecked ? "是" : "否"}</p>
-                    <p>预习：{selected.previewChecked ? "是" : "否"}</p>
-                    <p>备注：{selected.note || "无"}</p>
-                  </div>
-                ) : (
-                  <p className="text-sm text-ink/50">请选择一条记录查看详情。</p>
-                )}
-              </div>
+            <div className="mt-6 flex items-center justify-center gap-2 rounded-[1.8rem] bg-teal-50 py-5 text-xs font-bold text-teal-500 dark:bg-teal-900/20">
+              <span className="material-icons-round text-lg">rocket_launch</span>
+              真棒！全程专注，无任何中断
             </div>
           )}
-        </section>
-        <section className="card rounded-3xl p-6 shadow-soft">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-2xl text-ink">结束记录</h2>
-            <span className="text-xs text-ink/60">30 秒内完成</span>
+        </div>
+      </div>
+
+      <div className="mb-10 space-y-5">
+        <div className="rounded-[2.8rem] border border-gray-50 bg-white p-7 shadow-soft dark:border-gray-800 dark:bg-card-dark">
+          <div className="mb-6 flex items-center px-2">
+            <span className="material-icons-round mr-3 rounded-xl bg-teal-50 p-2 text-lg text-primary dark:bg-teal-900/30">
+              stars
+            </span>
+            <h2 className="text-base font-black text-gray-800 dark:text-white">
+              完成质量
+            </h2>
           </div>
-          <p className="mt-3 text-sm text-ink/70">
-            当前任务：{activeTask.title}
-          </p>
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <label className="rounded-2xl border border-ink/10 bg-chalk px-4 py-3">
-              <span className="text-xs text-ink/60">完成度</span>
-              <input
-                type="range"
-                min="1"
-                max="5"
-                value={rating}
-                onChange={(event) => setRating(Number(event.target.value))}
-                className="mt-2 w-full"
-              />
-            </label>
-            <label className="rounded-2xl border border-ink/10 bg-chalk px-4 py-3">
-              <span className="text-xs text-ink/60">低级错数量</span>
-              <input
-                type="number"
-                min="0"
-                value={mistakeCount}
-                onChange={(event) => setMistakeCount(Number(event.target.value))}
-                className="mt-2 w-full rounded-xl border border-ink/10 bg-white px-3 py-2 text-sm"
-              />
-            </label>
-            <div className="rounded-2xl border border-ink/10 bg-chalk px-4 py-3">
-              <span className="text-xs text-ink/60">书写星级</span>
-              <div className="mt-2 flex gap-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    onClick={() => setWritingStars(star)}
-                    className={`h-8 w-8 rounded-full border text-sm ${
-                      star <= writingStars
-                        ? "border-cider bg-cider/20 text-cider"
-                        : "border-ink/20 text-ink/50"
-                    }`}
-                  >
-                    {star}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <label className="rounded-2xl border border-ink/10 bg-chalk px-4 py-3">
-              <span className="text-xs text-ink/60">中断原因</span>
-              <select
-                value={interruptReason}
-                onChange={(event) => setInterruptReason(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-ink/10 bg-white px-3 py-2 text-sm"
-              >
-                <option value="">未发生</option>
-                {interruptOptions.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <div className="grid grid-cols-3 gap-4">
+            {[
+              { label: "极好", id: "best" as const },
+              { label: "不错", id: "good" as const },
+              { label: "一般", id: "meh" as const }
+            ].map((item) => (
+              <label key={item.id} className="cursor-pointer group">
+                <input
+                  type="radio"
+                  name="completion"
+                  className="peer sr-only"
+                  checked={completionLevel === item.id}
+                  onChange={() => setCompletionLevel(item.id)}
+                />
+                <div className="flex flex-col items-center justify-center rounded-[2rem] border-2 border-transparent bg-gray-50 p-4 shadow-sm transition-all peer-checked:border-primary peer-checked:bg-teal-50 dark:bg-gray-800 dark:peer-checked:bg-teal-900/20">
+                  <span className="mb-2 text-2xl font-black text-gray-500">
+                    {item.label}
+                  </span>
+                  <span className="text-[12px] font-black tracking-wide text-gray-400 peer-checked:text-primary">
+                    {item.label}
+                  </span>
+                </div>
+              </label>
+            ))}
           </div>
-          <div className="mt-4 flex flex-wrap gap-3">
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
             <button
               type="button"
               onClick={() => setFixChecked((prev) => !prev)}
-              className={`rounded-full border px-4 py-2 text-sm ${
+              className={`rounded-full border px-4 py-2 text-xs font-bold ${
                 fixChecked
-                  ? "border-moss bg-moss/20 text-moss"
-                  : "border-ink/20 text-ink/70"
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-gray-200 text-gray-400"
               }`}
             >
               改错
@@ -199,10 +356,10 @@ export default function RecordPage() {
             <button
               type="button"
               onClick={() => setReviewChecked((prev) => !prev)}
-              className={`rounded-full border px-4 py-2 text-sm ${
+              className={`rounded-full border px-4 py-2 text-xs font-bold ${
                 reviewChecked
-                  ? "border-moss bg-moss/20 text-moss"
-                  : "border-ink/20 text-ink/70"
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-gray-200 text-gray-400"
               }`}
             >
               复习
@@ -210,61 +367,34 @@ export default function RecordPage() {
             <button
               type="button"
               onClick={() => setPreviewChecked((prev) => !prev)}
-              className={`rounded-full border px-4 py-2 text-sm ${
+              className={`rounded-full border px-4 py-2 text-xs font-bold ${
                 previewChecked
-                  ? "border-moss bg-moss/20 text-moss"
-                  : "border-ink/20 text-ink/70"
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-gray-200 text-gray-400"
               }`}
             >
               预习
             </button>
           </div>
-          <label className="mt-4 block rounded-2xl border border-ink/10 bg-white px-4 py-3 text-sm text-ink/60">
-            <span className="text-xs text-ink/60">备注</span>
-            <textarea
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              className="mt-2 w-full resize-none rounded-xl border border-ink/10 bg-white px-3 py-2 text-sm"
-              rows={3}
-            />
-          </label>
-          <div className="mt-5 rounded-2xl border border-ink/10 bg-ink/5 px-4 py-3 text-sm">
-            <p className="text-ink/70">自动结算：预计获得 {points} 积分</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              const entry: RecordEntry = {
-                id: uid("rec"),
-                taskId: activeTask.id,
-                title: activeTask.title,
-                subject: activeTask.subject,
-                minutes: activeTask.plannedMinutes,
-                rating,
-                mistakeCount,
-                writingStars,
-                reviewChecked,
-                fixChecked,
-                previewChecked,
-                note,
-                createdAt: new Date().toISOString(),
-                points
-              };
-              setRecords((prev) => [entry, ...prev]);
-              setTasks((prev) =>
-                prev.map((item) =>
-                  item.id === activeTask.id ? { ...item, status: "done" } : item
-                )
-              );
-              setSelectedId(entry.id);
-              setNote("");
-            }}
-            className="mt-5 w-full rounded-2xl bg-moss px-4 py-3 text-sm font-semibold text-chalk shadow-crisp transition hover:-translate-y-0.5"
-          >
-            完成记录并结算
-          </button>
-        </section>
+          <textarea
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            placeholder="记录一句复盘感受"
+            className="mt-6 w-full resize-none rounded-[2rem] border border-gray-100 bg-gray-50 px-5 py-4 text-sm font-medium text-gray-600 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800"
+            rows={3}
+          />
+        </div>
       </div>
-    </main>
+
+      <div className="mt-auto pt-4">
+        <button type="button"
+          onClick={saveRecord}
+          className="flex w-full items-center justify-center gap-2 rounded-[2.2rem] bg-primary px-6 py-4.5 text-lg font-black tracking-wider text-white shadow-glow transition-all active:scale-95"
+        >
+          保存并退出
+          <span className="material-icons-round">check_circle</span>
+        </button>
+      </div>
+    </div>
   );
 }

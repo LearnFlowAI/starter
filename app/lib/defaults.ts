@@ -23,12 +23,3 @@ export const defaultTasks: Task[] = [
     status: "todo"
   }
 ];
-
-export const interruptOptions = [
-  "喝水",
-  "分心",
-  "去洗手间",
-  "家长打断",
-  "找资料",
-  "情绪波动"
-];
