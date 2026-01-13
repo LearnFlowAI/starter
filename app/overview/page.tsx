@@ -17,6 +17,7 @@ type InterruptionLog = {
   duration: number;
   createdAt: string;
   taskId: string;
+  sessionId: string;
 };
 
 export default function OverviewPage() {

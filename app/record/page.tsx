@@ -12,6 +12,7 @@ type InterruptionLog = {
   duration: number;
   createdAt: string;
   taskId: string;
+  sessionId: string;
 };
 
 const REASON_MAP: Record<
@@ -128,7 +129,7 @@ export default function RecordPage() {
     scores.find((score) => score.sessionId === latestSession.id)?.points ?? 0;
 
   const sessionInterruptions = interruptions.filter(
-    (entry) => entry.taskId === latestSession.taskId
+    (entry) => entry.sessionId === latestSession.id
   );
 
   const reasonStats = sessionInterruptions.reduce<

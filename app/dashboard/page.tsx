@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Pie, PieChart, ResponsiveContainer, Tooltip, Cell } from "recharts";
 import BottomNav from "../components/BottomNav";
 import { defaultTasks } from "../lib/defaults";
@@ -75,10 +75,9 @@ export default function DashboardPage() {
     .filter((data) => data.value > 0);
 
   const actualChartData = uiTasks
-    .filter((task) => task.isCompleted)
     .map((task) => ({
       name: task.name,
-      value: task.duration,
+      value: task.actualMinutes,
       color: TASK_CONFIG[task.type].hex
     }))
     .filter((data) => data.value > 0);

@@ -11,6 +11,7 @@ type InterruptionLog = {
   duration: number;
   createdAt: string;
   taskId: string;
+  sessionId: string;
 };
 
 const REASON_META: Record<
@@ -108,135 +109,161 @@ export default function PauseAnalysisPage() {
       </header>
 
       <main className="px-6 pt-4">
-        <div className="relative mb-10 overflow-hidden rounded-[3rem] border border-gray-50 bg-white p-8 shadow-soft dark:border-gray-800 dark:bg-card-dark">
-          <div className="pointer-events-none absolute right-0 top-0 h-32 w-32 rounded-full bg-primary/5 blur-3xl" />
-          <div className="pointer-events-none absolute bottom-0 left-0 h-32 w-32 rounded-full bg-secondary/5 blur-3xl" />
+        {data.length > 0 ? (
+          <>
+            <div className="relative mb-10 overflow-hidden rounded-[3rem] border border-gray-50 bg-white p-8 shadow-soft dark:border-gray-800 dark:bg-card-dark">
+              <div className="pointer-events-none absolute right-0 top-0 h-32 w-32 rounded-full bg-primary/5 blur-3xl" />
+              <div className="pointer-events-none absolute bottom-0 left-0 h-32 w-32 rounded-full bg-secondary/5 blur-3xl" />
 
-          <div className="relative flex flex-col items-center">
-            <div className="relative flex h-64 w-64 items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={data}
-                    innerRadius={70}
-                    outerRadius={95}
-                    paddingAngle={0}
-                    dataKey="value"
-                    animationDuration={1500}
-                  >
-                    {data.map((entry) => (
-                      <Cell
-                        key={`cell-${entry.id}`}
-                        fill={entry.color}
-                        stroke="none"
+              <div className="relative flex flex-col items-center">
+                <div className="relative flex h-64 w-64 items-center justify-center">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={data}
+                        innerRadius={70}
+                        outerRadius={95}
+                        paddingAngle={0}
+                        dataKey="value"
+                        animationDuration={1500}
+                      >
+                        {data.map((entry) => (
+                          <Cell
+                            key={`cell-${entry.id}`}
+                            fill={entry.color}
+                            stroke="none"
+                          />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute flex flex-col items-center">
+                    <span className="mb-1 text-[10px] font-black uppercase tracking-widest text-primary/60">
+                      {periodLabel}总计
+                    </span>
+                    <div className="flex items-baseline">
+                      <span className="text-5xl font-black tabular-nums text-gray-800 dark:text-white">
+                        {totalCount}
+                      </span>
+                      <span className="ml-1 text-sm font-bold text-gray-400">
+                        次
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-3">
+                  {data.map((item) => (
+                    <div key={item.name} className="flex items-center gap-2">
+                      <div
+                        className="h-3.5 w-3.5 rounded-full"
+                        style={{ backgroundColor: item.color }}
                       />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="absolute flex flex-col items-center">
-                <span className="mb-1 text-[10px] font-black uppercase tracking-widest text-primary/60">
-                  {periodLabel}总计
-                </span>
-                <div className="flex items-baseline">
-                  <span className="text-5xl font-black tabular-nums text-gray-800 dark:text-white">
-                    {totalCount}
-                  </span>
-                  <span className="ml-1 text-sm font-bold text-gray-400">次</span>
+                      <span className="text-xs font-black text-gray-400">
+                        {item.name}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
 
-            <div className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-3">
-              {data.map((item) => (
-                <div key={item.name} className="flex items-center gap-2">
-                  <div
-                    className="h-3.5 w-3.5 rounded-full"
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <span className="text-xs font-black text-gray-400">
-                    {item.name}
+            <div className="mb-10">
+              <div className="mb-6 flex items-center justify-between">
+                <h2 className="text-2xl font-black tracking-tight text-gray-800 dark:text-white">
+                  详细统计
+                </h2>
+                <button
+                  type="button"
+                  className="text-xs font-black tracking-wide text-primary"
+                >
+                  查看历史
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {data.map((item) => {
+                  const percentage =
+                    totalCount > 0
+                      ? Math.round((item.value / totalCount) * 100)
+                      : 0;
+                  return (
+                    <div
+                      key={item.name}
+                      className="flex items-center gap-5 rounded-[2.5rem] border border-gray-50 bg-white p-5 shadow-soft transition-all hover:scale-[1.02] dark:border-gray-800 dark:bg-card-dark"
+                    >
+                      <div
+                        className="flex h-16 w-16 items-center justify-center rounded-[1.8rem] shadow-sm"
+                        style={{
+                          backgroundColor: `${item.color}15`,
+                          color: item.color
+                        }}
+                      >
+                        <span className="material-icons-round text-3xl">
+                          {item.icon}
+                        </span>
+                      </div>
+
+                      <div className="flex-1">
+                        <div className="mb-2.5 flex items-center justify-between">
+                          <div>
+                            <h3 className="text-lg font-black text-gray-800 dark:text-white">
+                              {item.name}
+                            </h3>
+                            <p className="text-[10px] font-bold tracking-wide text-gray-400">
+                              {item.value} 次 · 共 {item.duration} 分钟
+                            </p>
+                          </div>
+                          <span className="text-sm font-black tabular-nums text-gray-400">
+                            {percentage}%
+                          </span>
+                        </div>
+                        <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-50 dark:bg-gray-800">
+                          <div
+                            className="h-full rounded-full transition-all duration-1000 delay-300"
+                            style={{
+                              width: `${percentage}%`,
+                              backgroundColor: item.color
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {period === "today" && totalCount > 0 && (
+              <section className="flex items-start gap-4 rounded-[2.5rem] border border-teal-100 bg-teal-50 p-6 dark:border-teal-900/30 dark:bg-teal-900/10">
+                <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-primary text-white shadow-glow">
+                  <span className="material-icons-round text-3xl">
+                    lightbulb
                   </span>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="mb-10">
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-2xl font-black tracking-tight text-gray-800 dark:text-white">
-              详细统计
-            </h2>
-            <button type="button" className="text-xs font-black tracking-wide text-primary">
-              查看历史
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            {data.map((item) => {
-              const percentage =
-                totalCount > 0
-                  ? Math.round((item.value / totalCount) * 100)
-                  : 0;
-              return (
-                <div
-                  key={item.name}
-                  className="flex items-center gap-5 rounded-[2.5rem] border border-gray-50 bg-white p-5 shadow-soft transition-all hover:scale-[1.02] dark:border-gray-800 dark:bg-card-dark"
-                >
-                  <div
-                    className="flex h-16 w-16 items-center justify-center rounded-[1.8rem] shadow-sm"
-                    style={{
-                      backgroundColor: `${item.color}15`,
-                      color: item.color
-                    }}
-                  >
-                    <span className="material-icons-round text-3xl">
-                      {item.icon}
-                    </span>
-                  </div>
-
-                  <div className="flex-1">
-                    <div className="mb-2.5 flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-black text-gray-800 dark:text-white">
-                          {item.name}
-                        </h3>
-                        <p className="text-[10px] font-bold tracking-wide text-gray-400">
-                          {item.value} 次 · 共 {item.duration} 分钟
-                        </p>
-                      </div>
-                      <span className="text-sm font-black tabular-nums text-gray-400">
-                        {percentage}%
-                      </span>
-                    </div>
-                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-50 dark:bg-gray-800">
-                      <div
-                        className="h-full rounded-full transition-all duration-1000 delay-300"
-                        style={{ width: `${percentage}%`, backgroundColor: item.color }}
-                      />
-                    </div>
-                  </div>
+                <div>
+                  <h3 className="mb-1 text-lg font-black text-teal-800 dark:text-teal-400">
+                    小贴士
+                  </h3>
+                  <p className="text-sm font-bold leading-relaxed text-teal-600 dark:text-teal-600/70">
+                    今天分心次数偏多，试试把手机放远一点，让注意力更集中。
+                  </p>
                 </div>
-              );
-            })}
+              </section>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center pt-20 text-center">
+            <span className="material-icons-round text-6xl text-gray-300 dark:text-gray-600">
+              analytics
+            </span>
+            <h2 className="mt-4 text-lg font-bold text-gray-700 dark:text-gray-300">
+              暂无中断数据
+            </h2>
+            <p className="mt-1 text-sm text-gray-400">
+              当前选择的时间范围内没有记录到任何中断。
+            </p>
           </div>
-        </div>
-
-        {period === "today" && totalCount > 0 && (
-          <section className="flex items-start gap-4 rounded-[2.5rem] border border-teal-100 bg-teal-50 p-6 dark:border-teal-900/30 dark:bg-teal-900/10">
-            <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-primary text-white shadow-glow">
-              <span className="material-icons-round text-3xl">lightbulb</span>
-            </div>
-            <div>
-              <h3 className="mb-1 text-lg font-black text-teal-800 dark:text-teal-400">
-                小贴士
-              </h3>
-              <p className="text-sm font-bold leading-relaxed text-teal-600 dark:text-teal-600/70">
-                今天分心次数偏多，试试把手机放远一点，让注意力更集中。
-              </p>
-            </div>
-          </section>
         )}
       </main>
     </div>
