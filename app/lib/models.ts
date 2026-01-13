@@ -41,3 +41,12 @@ export type ScoreEntry = {
   pauseCount: number;
   createdAt: string;
 };
+
+export type InterruptionLog = {
+  id: string;
+  reasonId: string;
+  duration: number;
+  createdAt: string;
+  taskId: string;
+  sessionId?: string;
+};

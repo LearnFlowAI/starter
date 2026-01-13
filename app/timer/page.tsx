@@ -14,6 +14,7 @@ type InterruptionLog = {
   duration: number;
   createdAt: string;
   taskId: string;
+  sessionId: string;
 };
 
 export default function TimerPage() {
@@ -31,6 +32,10 @@ export default function TimerPage() {
   const [pauseCount, setPauseCount] = useLocalState<number>("lf_timer_pause", 0);
   const [startedAt, setStartedAt] = useLocalState<string>(
     "lf_timer_started_at",
+    ""
+  );
+  const [currentSessionId, setCurrentSessionId] = useLocalState<string>(
+    "lf_current_session_id",
     ""
   );
   const [pauseStartedAt, setPauseStartedAt] = useLocalState<number | null>(
@@ -154,11 +159,20 @@ export default function TimerPage() {
                 router.push("/pause-reason");
                 return;
               }
+              const sessionId = currentSessionId || uid("ses");
+              // Handle starting a new session or resuming an old one
               if (!startedAt) {
                 setStartedAt(new Date().toISOString());
+                setCurrentSessionId(sessionId);
+              } else if (!currentSessionId) {
+                // Compatibility: An old session was running without a session ID. Assign one now.
+                setCurrentSessionId(sessionId);
               }
+
               if (pauseStartedAt) {
-                const duration = Math.floor((Date.now() - pauseStartedAt) / 1000);
+                const duration = Math.floor(
+                  (Date.now() - pauseStartedAt) / 1000
+                );
                 const reason = pendingReason ?? "other";
                 setInterruptions((prev) => [
                   {
@@ -166,7 +180,8 @@ export default function TimerPage() {
                     reasonId: reason,
                     duration,
                     createdAt: new Date().toISOString(),
-                    taskId: activeTask.id
+                    taskId: activeTask.id,
+                    sessionId
                   },
                   ...prev
                 ]);
@@ -183,8 +198,33 @@ export default function TimerPage() {
             type="button"
             onClick={() => {
               if (seconds > 0) {
+                // Fallback for session ID, ensuring it's never empty
+                const sessionId = currentSessionId || uid("ses");
+                if (!currentSessionId) {
+                  setCurrentSessionId(sessionId);
+                }
+                
+                // If ending session while paused, log the final interruption
+                if (pauseStartedAt) {
+                  const duration = Math.floor(
+                    (Date.now() - pauseStartedAt) / 1000
+                  );
+                  const reason = pendingReason ?? "other";
+                  setInterruptions((prev) => [
+                    {
+                      id: uid("pause"),
+                      reasonId: reason,
+                      duration,
+                      createdAt: new Date().toISOString(),
+                      taskId: activeTask.id,
+                      sessionId: sessionId // Use the guaranteed session ID
+                    },
+                    ...prev
+                  ]);
+                }
+
                 const entry: SessionEntry = {
-                  id: uid("ses"),
+                  id: sessionId,
                   taskId: activeTask.id,
                   seconds,
                   pauseCount,
@@ -209,6 +249,7 @@ export default function TimerPage() {
               setSeconds(0);
               setPauseCount(0);
               setStartedAt("");
+              setCurrentSessionId("");
               setPauseStartedAt(null);
               setPendingReason(null);
               router.push("/record");

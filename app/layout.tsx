@@ -7,6 +7,7 @@ import {
   Poppins
 } from "next/font/google";
 import SwRegister from "./sw-register";
+import AppProvider from "./components/AppProvider";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -57,8 +58,10 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-background-light text-text-main-light antialiased transition-colors duration-300">
-        <SwRegister />
-        {children}
+        <AppProvider>
+          <SwRegister />
+          {children}
+        </AppProvider>
       </body>
     </html>
   );
