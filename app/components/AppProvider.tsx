@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { migrateInterruptions } from "../lib/migration";
+import { ToastProvider } from "./Toast";
 
 /**
  * This is a global provider that handles application-wide logic,
@@ -17,5 +18,5 @@ export default function AppProvider({
     migrateInterruptions();
   }, []); // The empty dependency array ensures this runs only once on mount.
 
-  return <>{children}</>;
+  return <ToastProvider>{children}</ToastProvider>;
 }

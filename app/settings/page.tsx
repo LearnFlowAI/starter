@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatDate } from "../lib/daily";
+import { downloadFile, exportData } from "../lib/export";
+import { useTheme } from "../lib/theme";
 import BottomNav from "../components/BottomNav";
+import { useToast } from "../components/Toast";
 
 interface Rule {
   id: string;
@@ -49,10 +53,13 @@ const DEFAULT_RULES: Rule[] = [
 ];
 
 export default function SettingsPage() {
+  const { isDarkMode, toggleTheme } = useTheme();
+  const { showToast } = useToast();
   const [rules, setRules] = useState<Rule[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [editingRule, setEditingRule] = useState<Rule | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const [ruleTitle, setRuleTitle] = useState("");
   const [ruleDesc, setRuleDesc] = useState("");
@@ -171,17 +178,36 @@ export default function SettingsPage() {
   };
 
   const handleDeleteRule = (id: string) => {
-    if (window.confirm("确定要删除这条规则吗？")) {
-      saveRules(rules.filter((rule) => rule.id !== id));
+    setPendingDeleteId(id);
+  };
+
+  const confirmDeleteRule = () => {
+    if (!pendingDeleteId) {
+      return;
+    }
+    saveRules(rules.filter((rule) => rule.id !== pendingDeleteId));
+    setPendingDeleteId(null);
+    showToast("success", "规则已删除");
+  };
+
+  const handleExport = () => {
+    try {
+      const content = exportData({
+        format: "json",
+        includeTypes: ["tasks", "sessions", "records", "scores", "interruptions"]
+      });
+      const date = formatDate(new Date()) || "backup";
+      downloadFile(content, `learnflow-backup-${date}.json`, "application/json");
+      showToast("success", "数据导出成功");
+    } catch (error) {
+      showToast("error", "数据导出失败,请重试");
     }
   };
 
   return (
     <div className="relative min-h-screen bg-background-light px-6 pb-40 pt-8 dark:bg-background-dark">
       <header className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-black text-gray-800 dark:text-white">
-          规则配置
-        </h1>
+        <h1 className="text-2xl font-black text-gray-800 dark:text-white">设置</h1>
         <div className="flex gap-2">
           <button type="button"
             onClick={() => setShowHelpModal(true)}
@@ -199,125 +225,181 @@ export default function SettingsPage() {
       </header>
 
       <p className="mb-8 text-sm font-medium text-gray-500">
-        设置你的奖励规则，让学习更有动力。
+        管理主题、数据与积分规则。
       </p>
 
       <main className="space-y-8">
-        {rules.map((rule) => (
-          <div
-            key={rule.id}
-            className={`relative overflow-hidden rounded-[2.5rem] border border-gray-100 bg-white p-6 shadow-soft transition-all duration-300 dark:border-gray-800 dark:bg-card-dark ${
-              !rule.isEnabled ? "opacity-60 grayscale-[0.5]" : ""
-            }`}
-          >
-            <div
-              className={`absolute left-0 top-0 h-full w-1.5 ${
-                rule.pointsType === "reward" ? "bg-primary" : "bg-rose-500"
-              }`}
-            />
-
-            <div className="mb-4 flex items-start justify-between">
-              <div className="flex items-center gap-4">
-                <div
-                  className={`flex h-14 w-14 items-center justify-center rounded-2xl ${rule.bgColor} shadow-sm dark:bg-opacity-10 ${rule.color}`}
-                >
-                  <span className="material-icons-round text-3xl">
-                    {rule.icon}
-                  </span>
-                </div>
-                <div>
-                  <h2 className="text-lg font-black text-gray-800 dark:text-white">
-                    {rule.title}
-                  </h2>
-                  <p className="text-xs font-bold uppercase tracking-widest text-gray-300 dark:text-gray-500">
-                    {rule.subTitle}
-                  </p>
-                </div>
-              </div>
-              <button type="button"
-                onClick={() => toggleRule(rule.id)}
-                className={`relative h-7 w-12 rounded-full transition-all ${
-                  rule.isEnabled ? "bg-primary" : "bg-gray-200 dark:bg-gray-700"
-                }`}
-              >
-                <span
-                  className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow-sm transition-all ${
-                    rule.isEnabled ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </button>
+        <section className="rounded-[2.5rem] border border-gray-100 bg-white p-6 shadow-soft dark:border-gray-800 dark:bg-card-dark">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-black text-gray-800 dark:text-white">
+                深色模式
+              </h2>
+              <p className="text-xs font-bold text-gray-400">切换明暗主题</p>
             </div>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className={`relative h-7 w-12 rounded-full transition-all ${
+                isDarkMode ? "bg-primary" : "bg-gray-200 dark:bg-gray-700"
+              }`}
+            >
+              <span
+                className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow-sm transition-all ${
+                  isDarkMode ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+        </section>
 
-            <p className="mb-5 text-sm leading-relaxed text-gray-500">
-              {rule.description}
+        <section className="rounded-[2.5rem] border border-gray-100 bg-white p-6 shadow-soft dark:border-gray-800 dark:bg-card-dark">
+          <div className="mb-4">
+            <h2 className="text-base font-black text-gray-800 dark:text-white">
+              数据管理
+            </h2>
+            <p className="text-xs font-bold text-gray-400">
+              备份本地学习记录
             </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleExport}
+            className="w-full rounded-full bg-primary py-3 text-sm font-bold text-white shadow-glow"
+          >
+            导出数据 (JSON)
+          </button>
+        </section>
 
-            <div className="flex items-center justify-between gap-4">
-              {rule.type === "threshold" && (
-                <div className="flex items-center gap-3">
-                  <button type="button"
-                    onClick={() => updateNumericValue(rule.id, "thresholdValue", -5)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-50 text-gray-400 shadow-sm dark:bg-gray-800"
-                  >
-                    <span className="material-icons-round text-base">remove</span>
-                  </button>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-300">
-                      阈值
-                    </p>
-                    <p className="text-lg font-black text-gray-700 dark:text-gray-200">
-                      {rule.thresholdValue} 分钟
-                    </p>
-                  </div>
-                  <button type="button"
-                    onClick={() => updateNumericValue(rule.id, "thresholdValue", 5)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-50 text-gray-400 shadow-sm dark:bg-gray-800"
-                  >
-                    <span className="material-icons-round text-base">add</span>
-                  </button>
-                </div>
-              )}
-
-              <div className="flex items-center gap-3">
-                <button type="button"
-                  onClick={() => updateNumericValue(rule.id, "points", -1)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-50 text-gray-400 shadow-sm dark:bg-gray-800"
-                >
-                  <span className="material-icons-round text-base">remove</span>
-                </button>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-300">
-                    积分
-                  </p>
-                  <p className="text-lg font-black text-gray-700 dark:text-gray-200">
-                    {rule.points}
-                  </p>
-                </div>
-                <button type="button"
-                  onClick={() => updateNumericValue(rule.id, "points", 1)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-50 text-gray-400 shadow-sm dark:bg-gray-800"
-                >
-                  <span className="material-icons-round text-base">add</span>
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button type="button"
-                  onClick={() => handleOpenEdit(rule)}
-                  className="rounded-full bg-gray-50 px-4 py-2 text-xs font-bold text-gray-500 transition-all hover:text-primary dark:bg-gray-800"
-                >
-                  编辑
-                </button>
-                <button type="button"
-                  onClick={() => handleDeleteRule(rule.id)}
-                  className="rounded-full bg-rose-50 px-4 py-2 text-xs font-bold text-rose-500 transition-all hover:bg-rose-100 dark:bg-rose-900/30"
-                >
-                  删除
-                </button>
-              </div>
+        <section>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-black text-gray-800 dark:text-white">
+                积分规则
+              </h2>
+              <p className="text-xs font-bold text-gray-400">
+                查看并调整激励规则
+              </p>
             </div>
           </div>
-        ))}
+          <div className="space-y-8">
+            {rules.map((rule) => (
+              <div
+                key={rule.id}
+                className={`relative overflow-hidden rounded-[2.5rem] border border-gray-100 bg-white p-6 shadow-soft transition-all duration-300 dark:border-gray-800 dark:bg-card-dark ${
+                  !rule.isEnabled ? "opacity-60 grayscale-[0.5]" : ""
+                }`}
+              >
+                <div
+                  className={`absolute left-0 top-0 h-full w-1.5 ${
+                    rule.pointsType === "reward" ? "bg-primary" : "bg-rose-500"
+                  }`}
+                />
+
+                <div className="mb-4 flex items-start justify-between">
+                  <div className="flex items-center gap-4">
+                    <div
+                      className={`flex h-14 w-14 items-center justify-center rounded-2xl ${rule.bgColor} shadow-sm dark:bg-opacity-10 ${rule.color}`}
+                    >
+                      <span className="material-icons-round text-3xl">
+                        {rule.icon}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-gray-800 dark:text-white">
+                        {rule.title}
+                      </h3>
+                      <p className="text-xs font-bold uppercase tracking-widest text-gray-300 dark:text-gray-500">
+                        {rule.subTitle}
+                      </p>
+                    </div>
+                  </div>
+                  <button type="button"
+                    onClick={() => toggleRule(rule.id)}
+                    className={`relative h-7 w-12 rounded-full transition-all ${
+                      rule.isEnabled ? "bg-primary" : "bg-gray-200 dark:bg-gray-700"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow-sm transition-all ${
+                        rule.isEnabled ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <p className="mb-5 text-sm leading-relaxed text-gray-500">
+                  {rule.description}
+                </p>
+
+                <div className="flex items-center justify-between gap-4">
+                  {rule.type === "threshold" && (
+                    <div className="flex items-center gap-3">
+                      <button type="button"
+                        onClick={() => updateNumericValue(rule.id, "thresholdValue", -5)}
+                        className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-50 text-gray-400 shadow-sm dark:bg-gray-800"
+                      >
+                        <span className="material-icons-round text-base">remove</span>
+                      </button>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-300">
+                          阈值
+                        </p>
+                        <p className="text-lg font-black text-gray-700 dark:text-gray-200">
+                          {rule.thresholdValue} 分钟
+                        </p>
+                      </div>
+                      <button type="button"
+                        onClick={() => updateNumericValue(rule.id, "thresholdValue", 5)}
+                        className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-50 text-gray-400 shadow-sm dark:bg-gray-800"
+                      >
+                        <span className="material-icons-round text-base">add</span>
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-3">
+                    <button type="button"
+                      onClick={() => updateNumericValue(rule.id, "points", -1)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-50 text-gray-400 shadow-sm dark:bg-gray-800"
+                    >
+                      <span className="material-icons-round text-base">remove</span>
+                    </button>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-300">
+                        积分
+                      </p>
+                      <p className="text-lg font-black text-gray-700 dark:text-gray-200">
+                        {rule.points}
+                      </p>
+                    </div>
+                    <button type="button"
+                      onClick={() => updateNumericValue(rule.id, "points", 1)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-50 text-gray-400 shadow-sm dark:bg-gray-800"
+                    >
+                      <span className="material-icons-round text-base">add</span>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button type="button"
+                      onClick={() => handleOpenEdit(rule)}
+                      className="rounded-full bg-gray-50 px-4 py-2 text-xs font-bold text-gray-500 transition-all hover:text-primary dark:bg-gray-800"
+                    >
+                      编辑
+                    </button>
+                  <button type="button"
+                    onClick={() => handleDeleteRule(rule.id)}
+                    className="rounded-full bg-rose-50 px-4 py-2 text-xs font-bold text-rose-500 transition-all hover:bg-rose-100 dark:bg-rose-900/30"
+                  >
+                    删除
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       </main>
 
       {showModal && (
@@ -422,6 +504,33 @@ export default function SettingsPage() {
             >
               我知道了
             </button>
+          </div>
+        </div>
+      )}
+
+      {pendingDeleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-6">
+          <div className="w-full max-w-md rounded-[2.5rem] bg-white p-6 shadow-2xl dark:bg-card-dark">
+            <h2 className="mb-3 text-xl font-black text-gray-800 dark:text-white">
+              删除规则
+            </h2>
+            <p className="text-sm text-gray-500">
+              确定要删除这条规则吗？删除后无法恢复。
+            </p>
+            <div className="mt-6 flex items-center gap-3">
+              <button type="button"
+                onClick={() => setPendingDeleteId(null)}
+                className="flex-1 rounded-full border border-gray-200 py-3 text-sm font-bold text-gray-400 transition-all hover:text-gray-600 dark:border-gray-700"
+              >
+                取消
+              </button>
+              <button type="button"
+                onClick={confirmDeleteRule}
+                className="flex-1 rounded-full bg-rose-500 py-3 text-sm font-bold text-white shadow-glow"
+              >
+                删除
+              </button>
+            </div>
           </div>
         </div>
       )}
