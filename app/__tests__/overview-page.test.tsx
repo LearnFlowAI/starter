@@ -39,7 +39,7 @@ describe("总览页", () => {
     const scores: ScoreEntry[] = [
       {
         id: "scr_1",
-        sessionId: "ses_1",
+        sessionId: "ses_2",
         taskId: "t1",
         points: 26,
         seconds: 1200,

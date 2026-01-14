@@ -66,6 +66,6 @@ describe("记录页", () => {
     ) as Array<{ taskId: string; points: number }>;
     expect(stored).toHaveLength(1);
     expect(stored[0].taskId).toBe("t1");
-    expect(stored[0].points).toBe(26);
+    expect(stored[0].points).toBe(170);
   });
 });

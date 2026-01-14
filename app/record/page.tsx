@@ -2,18 +2,17 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import type {
+  InterruptionLog,
+  RecordEntry,
+  ScoreEntry,
+  SessionEntry,
+  Task
+} from "../lib/models";
 import { defaultTasks } from "../lib/defaults";
-import type { RecordEntry, ScoreEntry, SessionEntry, Task } from "../lib/models";
+import { calculateSessionPoints } from "../lib/scoring";
 import { uid, useLocalState } from "../lib/storage";
-
-type InterruptionLog = {
-  id: string;
-  reasonId: string;
-  duration: number;
-  createdAt: string;
-  taskId: string;
-  sessionId: string;
-};
+import EmptyState from "../components/EmptyState";
 
 const REASON_MAP: Record<
   string,
@@ -67,7 +66,10 @@ export default function RecordPage() {
     "lf_sessions",
     []
   );
-  const [scores, , scoresReady] = useLocalState<ScoreEntry[]>("lf_scores", []);
+  const [, setScores, scoresReady] = useLocalState<ScoreEntry[]>(
+    "lf_scores",
+    []
+  );
   const [interruptions, , interruptionsReady] = useLocalState<
     InterruptionLog[]
   >(
@@ -107,26 +109,18 @@ export default function RecordPage() {
   if (!activeTask || !latestSession) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-background-light px-6 text-center dark:bg-background-dark">
-        <div className="rounded-[2.5rem] bg-white p-8 shadow-soft dark:bg-card-dark">
-          <h1 className="text-lg font-black text-gray-800 dark:text-white">
-            暂无可结算的专注记录
-          </h1>
-          <p className="mt-2 text-sm text-gray-400">
-            完成一次计时后，这里会出现专注总结。
-          </p>
-          <button type="button"
-            onClick={() => router.push("/dashboard")}
-            className="mt-6 w-full rounded-full bg-primary py-3 text-sm font-bold text-white shadow-glow"
-          >
-            返回首页
-          </button>
+        <div className="w-full max-w-md rounded-[2.5rem] bg-white p-8 shadow-soft dark:bg-card-dark">
+          <EmptyState
+            icon="hourglass_empty"
+            title="暂无可结算的专注记录"
+            description="完成一次计时后，这里会出现专注总结。"
+            actionLabel="返回首页"
+            onAction={() => router.push("/dashboard")}
+          />
         </div>
       </main>
     );
   }
-
-  const scoreForSession =
-    scores.find((score) => score.sessionId === latestSession.id)?.points ?? 0;
 
   const sessionInterruptions = interruptions.filter(
     (entry) => entry.sessionId === latestSession.id
@@ -149,8 +143,42 @@ export default function RecordPage() {
   const targetMins = Math.floor(activeTask.plannedMinutes);
 
   const rating = completionLevel === "best" ? 5 : completionLevel === "good" ? 4 : 3;
+  const writingStars =
+    completionLevel === "best" ? 3 : completionLevel === "good" ? 2 : 1;
+
+  const calculatedPoints = calculateSessionPoints({
+    seconds: latestSession.seconds,
+    pauseCount: latestSession.pauseCount,
+    rating,
+    mistakeCount: 0,
+    writingStars,
+    reviewChecked,
+    fixChecked,
+    previewChecked
+  });
 
   const saveRecord = () => {
+    setScores((prev) => {
+      const next = [...prev];
+      const existingIndex = next.findIndex(
+        (score) => score.sessionId === latestSession.id
+      );
+      const updatedScore: ScoreEntry = {
+        id: existingIndex >= 0 ? next[existingIndex].id : uid("scr"),
+        sessionId: latestSession.id,
+        taskId: latestSession.taskId,
+        points: calculatedPoints,
+        seconds: latestSession.seconds,
+        pauseCount: latestSession.pauseCount,
+        createdAt: latestSession.endedAt
+      };
+      if (existingIndex >= 0) {
+        next[existingIndex] = updatedScore;
+      } else {
+        next.unshift(updatedScore);
+      }
+      return next;
+    });
     const entry: RecordEntry = {
       id: uid("rec"),
       taskId: activeTask.id,
@@ -159,13 +187,13 @@ export default function RecordPage() {
       minutes: Math.max(1, Math.round(latestSession.seconds / 60)),
       rating,
       mistakeCount: 0,
-      writingStars: rating,
+      writingStars,
       reviewChecked,
       fixChecked,
       previewChecked,
       note,
       createdAt: new Date().toISOString(),
-      points: scoreForSession
+      points: calculatedPoints
     };
     setRecords((prev) => [entry, ...prev]);
     setTasks((prev) =>
@@ -204,7 +232,7 @@ export default function RecordPage() {
             </span>
           </div>
           <div className="absolute -bottom-1 -right-1 rounded-full border-2 border-white bg-secondary px-3 py-1 text-[10px] font-black text-gray-800 shadow-md dark:border-slate-800">
-            +{scoreForSession} EXP
+            +{calculatedPoints} EXP
           </div>
         </div>
 

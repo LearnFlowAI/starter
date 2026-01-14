@@ -1,14 +1,15 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
-import { Pie, PieChart, ResponsiveContainer, Tooltip, Cell } from "recharts";
-import BottomNav from "../components/BottomNav";
-import { defaultTasks } from "../lib/defaults";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import type { SessionEntry, Task } from "../lib/models";
+import { defaultTasks } from "../lib/defaults";
+import { useTheme } from "../lib/theme";
 import { useLocalState } from "../lib/storage";
 import { getTaskProgress, getTaskType, TASK_CONFIG } from "../lib/ui";
-import { useTheme } from "../lib/theme";
-import { useRouter } from "next/navigation";
+import BottomNav from "../components/BottomNav";
+import EmptyState from "../components/EmptyState";
 
 type FocusView = "planned" | "actual";
 
@@ -387,118 +388,128 @@ export default function DashboardPage() {
             </span>
           </button>
         </div>
-        <div className="space-y-4">
-          {displayedTasks.map((task) => {
-            const config = TASK_CONFIG[task.type];
-            const isActive = activeTaskId === task.id;
-            const actualMins = task.actualMinutes;
-            return (
-              <div
-                key={task.id}
-                className={`group relative flex flex-col gap-4 rounded-3xl border border-gray-50 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-soft dark:border-gray-800 dark:bg-card-dark ${
-                  task.isCompleted ? "opacity-80" : ""
-                } ${
-                  isActive
-                    ? "ring-2 ring-primary ring-offset-2 shadow-glow dark:ring-offset-gray-900"
-                    : ""
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <button
-                    type="button"
-                    className="flex flex-1 cursor-pointer items-center gap-4 text-left"
-                    onClick={() => {
-                      setActiveTaskId(task.id);
-                      if (!task.isCompleted) {
-                        router.push("/timer");
-                      }
-                    }}
-                  >
-                    <div
-                      className={`flex h-12 w-12 items-center justify-center rounded-2xl ${config.bgColor} ${config.color} dark:bg-opacity-10`}
-                    >
-                      <span className="material-icons-round text-2xl">
-                        {config.icon}
-                      </span>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="truncate font-bold text-gray-800 dark:text-white">
-                          {config.label} - {task.name}
-                        </h3>
-                        {isActive && (
-                          <span
-                            className={`shrink-0 rounded px-2 py-0.5 text-[8px] font-bold uppercase transition-colors ${
-                              timerRunning
-                                ? "animate-pulse bg-primary text-white"
-                                : "bg-secondary text-gray-800"
-                            }`}
-                          >
-                            {timerRunning ? "进行中" : "已暂停"}
-                          </span>
-                        )}
-                      </div>
-                      <div className="mt-1.5 flex items-center gap-1.5">
-                        <span className="text-[11px] font-bold text-gray-400">
-                          预计 {task.duration}m
-                        </span>
-                        {task.isCompleted && (
-                          <>
-                            <span className="h-2.5 w-px bg-gray-100 dark:bg-gray-800" />
-                            <span className="text-[11px] font-bold text-primary">
-                              实际 {actualMins}m
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-
-                  <div className="flex items-center gap-2">
+        {uiTasks.length === 0 ? (
+          <EmptyState
+            icon="playlist_add"
+            title="创建你的第一个学习任务"
+            description="从一个小目标开始，今天就完成它。"
+            actionLabel="点击 + 创建新任务"
+            onAction={() => router.push("/tasks")}
+          />
+        ) : (
+          <div className="space-y-4">
+            {displayedTasks.map((task) => {
+              const config = TASK_CONFIG[task.type];
+              const isActive = activeTaskId === task.id;
+              const actualMins = task.actualMinutes;
+              return (
+                <div
+                  key={task.id}
+                  className={`group relative flex flex-col gap-4 rounded-3xl border border-gray-50 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-soft dark:border-gray-800 dark:bg-card-dark ${
+                    task.isCompleted ? "opacity-80" : ""
+                  } ${
+                    isActive
+                      ? "ring-2 ring-primary ring-offset-2 shadow-glow dark:ring-offset-gray-900"
+                      : ""
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
                     <button
                       type="button"
-                      onClick={() => router.push(`/tasks?edit=${task.id}`)}
-                      className="rounded-full p-1.5 text-gray-200 transition-colors hover:bg-teal-50 hover:text-primary dark:hover:bg-gray-800"
-                    >
-                      <span className="material-icons-round text-lg">edit</span>
-                    </button>
-                    <button
-                      type="button"
+                      className="flex flex-1 cursor-pointer items-center gap-4 text-left"
                       onClick={() => {
-                        setTasks((prev) => {
-                          const next = prev.filter((t) => t.id !== task.id);
-                          if (activeTaskId === task.id) {
-                            setActiveTaskId(next[0]?.id ?? "");
-                          }
-                          return next;
-                        });
+                        setActiveTaskId(task.id);
+                        if (!task.isCompleted) {
+                          router.push("/timer");
+                        }
                       }}
-                      className="rounded-full p-1.5 text-gray-200 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-gray-800"
                     >
-                      <span className="material-icons-round text-lg">
-                        delete_outline
-                      </span>
+                      <div
+                        className={`flex h-12 w-12 items-center justify-center rounded-2xl ${config.bgColor} ${config.color} dark:bg-opacity-10`}
+                      >
+                        <span className="material-icons-round text-2xl">
+                          {config.icon}
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="truncate font-bold text-gray-800 dark:text-white">
+                            {config.label} - {task.name}
+                          </h3>
+                          {isActive && (
+                            <span
+                              className={`shrink-0 rounded px-2 py-0.5 text-[8px] font-bold uppercase transition-colors ${
+                                timerRunning
+                                  ? "animate-pulse bg-primary text-white"
+                                  : "bg-secondary text-gray-800"
+                              }`}
+                            >
+                              {timerRunning ? "进行中" : "已暂停"}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          <span className="text-[11px] font-bold text-gray-400">
+                            预计 {task.duration}m
+                          </span>
+                          {task.isCompleted && (
+                            <>
+                              <span className="h-2.5 w-px bg-gray-100 dark:bg-gray-800" />
+                              <span className="text-[11px] font-bold text-primary">
+                                实际 {actualMins}m
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
                     </button>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/tasks?edit=${task.id}`)}
+                        className="rounded-full p-1.5 text-gray-200 transition-colors hover:bg-teal-50 hover:text-primary dark:hover:bg-gray-800"
+                      >
+                        <span className="material-icons-round text-lg">edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTasks((prev) => {
+                            const next = prev.filter((t) => t.id !== task.id);
+                            if (activeTaskId === task.id) {
+                              setActiveTaskId(next[0]?.id ?? "");
+                            }
+                            return next;
+                          });
+                        }}
+                        className="rounded-full p-1.5 text-gray-200 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-gray-800"
+                      >
+                        <span className="material-icons-round text-lg">
+                          delete_outline
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-50 dark:bg-gray-800">
+                      <div
+                        className={`h-full rounded-full transition-all duration-1000 ease-out ${config.color.replace(
+                          "text-",
+                          "bg-"
+                        )}`}
+                        style={{ width: `${task.progress}%` }}
+                      />
+                    </div>
+                    <span className="w-10 text-right text-xs font-black tabular-nums text-gray-800 dark:text-gray-200">
+                      {task.isCompleted ? "完成" : `${task.progress}%`}
+                    </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-50 dark:bg-gray-800">
-                    <div
-                      className={`h-full rounded-full transition-all duration-1000 ease-out ${config.color.replace(
-                        "text-",
-                        "bg-"
-                      )}`}
-                      style={{ width: `${task.progress}%` }}
-                    />
-                  </div>
-                  <span className="w-10 text-right text-xs font-black tabular-nums text-gray-800 dark:text-gray-200">
-                    {task.isCompleted ? "完成" : `${task.progress}%`}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <BottomNav />

@@ -1,24 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import BottomNav from "../components/BottomNav";
-import type { ScoreEntry, SessionEntry, Task } from "../lib/models";
-import { useLocalState } from "../lib/storage";
-import { defaultTasks } from "../lib/defaults";
-import { getTaskType, TASK_CONFIG } from "../lib/ui";
-import { MOCK_STATS_DETAILS, MOCK_STATS_SUMMARY } from "../lib/stats";
 import { useRouter } from "next/navigation";
+import type { InterruptionLog, ScoreEntry, SessionEntry, Task } from "../lib/models";
+import { defaultTasks } from "../lib/defaults";
+import { getStatsForDateRange } from "../lib/daily";
+import { useLocalState } from "../lib/storage";
+import { getTaskType, TASK_CONFIG } from "../lib/ui";
+import BottomNav from "../components/BottomNav";
+import EmptyState from "../components/EmptyState";
 
 type Period = "today" | "yesterday" | "week";
-
-type InterruptionLog = {
-  id: string;
-  reasonId: string;
-  duration: number;
-  createdAt: string;
-  taskId: string;
-  sessionId: string;
-};
 
 export default function OverviewPage() {
   const router = useRouter();
@@ -40,75 +32,120 @@ export default function OverviewPage() {
   const ready =
     tasksReady && sessionsReady && scoresReady && interruptionsReady;
 
-  const todayKey = new Date().toDateString();
+  const periodData = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+    const startOfYesterday = new Date(startOfToday);
+    startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+    const endOfYesterday = new Date(startOfToday.getTime() - 1);
 
-  const todaySessions = sessions.filter(
-    (session) => new Date(session.endedAt).toDateString() === todayKey
-  );
+    const startOfWeek = new Date(startOfToday);
+    const dayOfWeek = startOfWeek.getDay();
+    const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    startOfWeek.setDate(startOfWeek.getDate() - diff);
 
-  const todayScores = scores.filter(
-    (score) => new Date(score.createdAt).toDateString() === todayKey
-  );
+    const ranges = {
+      today: { start: startOfToday, end: now, label: "今日专注" },
+      yesterday: { start: startOfYesterday, end: endOfYesterday, label: "昨日专注" },
+      week: { start: startOfWeek, end: now, label: "本周专注" }
+    } as const;
 
-  const todayInterruptions = interruptions.filter(
-    (entry) => new Date(entry.createdAt).toDateString() === todayKey
-  );
+    const buildDetails = (
+      rangeSessions: SessionEntry[],
+      rangeScores: ScoreEntry[],
+      rangeInterruptions: InterruptionLog[]
+    ) => {
+      const minutesByTask = rangeSessions.reduce<Record<string, number>>(
+        (acc, session) => {
+          acc[session.taskId] = (acc[session.taskId] ?? 0) + session.seconds / 60;
+          return acc;
+        },
+        {}
+      );
+      const pointsByTask = rangeScores.reduce<Record<string, number>>(
+        (acc, score) => {
+          acc[score.taskId] = (acc[score.taskId] ?? 0) + score.points;
+          return acc;
+        },
+        {}
+      );
+      const interruptionsByTask = rangeInterruptions.reduce<Record<string, number>>(
+        (acc, entry) => {
+          acc[entry.taskId] = (acc[entry.taskId] ?? 0) + 1;
+          return acc;
+        },
+        {}
+      );
 
-  const todayTotalMins = Math.round(
-    todaySessions.reduce((sum, session) => sum + session.seconds, 0) / 60
-  );
+      return tasks.map((task) => ({
+        id: task.id,
+        type: getTaskType(task.subject),
+        name: task.title,
+        duration: `${Math.round(minutesByTask[task.id] ?? 0)}m`,
+        interruptions: interruptionsByTask[task.id] ?? 0,
+        points: `+${pointsByTask[task.id] ?? 0}`
+      }));
+    };
 
-  const todaySummary = {
-    hours: Math.floor(todayTotalMins / 60),
-    mins: todayTotalMins % 60,
-    label: "今日专注"
-  };
+    const makePeriod = (range: (typeof ranges)[keyof typeof ranges]) => {
+      const inRange = (value: string) => {
+        const date = new Date(value);
+        return date >= range.start && date <= range.end;
+      };
+      const rangeSessions = sessions.filter((session) => inRange(session.endedAt));
+      const rangeScores = scores.filter((score) => inRange(score.createdAt));
+      const rangeInterruptions = interruptions.filter((entry) =>
+        inRange(entry.createdAt)
+      );
+      const summary = getStatsForDateRange(
+        sessions,
+        scores,
+        range.start,
+        range.end
+      );
+      const totalMinutes = summary.totalMinutes;
+      return {
+        summary: {
+          hours: Math.floor(totalMinutes / 60),
+          mins: totalMinutes % 60,
+          label: range.label
+        },
+        details: buildDetails(rangeSessions, rangeScores, rangeInterruptions),
+        totalInterruptions: rangeInterruptions.length
+      };
+    };
 
-  const todayDetails = useMemo(() => {
-    const minutesByTask = todaySessions.reduce<Record<string, number>>(
-      (acc, session) => {
-        acc[session.taskId] = (acc[session.taskId] ?? 0) + session.seconds / 60;
-        return acc;
-      },
-      {}
-    );
-    const pointsByTask = todayScores.reduce<Record<string, number>>(
-      (acc, score) => {
-        acc[score.taskId] = (acc[score.taskId] ?? 0) + score.points;
-        return acc;
-      },
-      {}
-    );
-    const interruptionsByTask = todayInterruptions.reduce<Record<string, number>>(
-      (acc, entry) => {
-        acc[entry.taskId] = (acc[entry.taskId] ?? 0) + 1;
-        return acc;
-      },
-      {}
-    );
-    return tasks.map((task) => ({
-      id: task.id,
-      type: getTaskType(task.subject),
-      name: task.title,
-      duration: `${Math.round(minutesByTask[task.id] ?? 0)}m`,
-      interruptions: interruptionsByTask[task.id] ?? 0,
-      points: `+${pointsByTask[task.id] ?? 0}`
-    }));
-  }, [tasks, todaySessions, todayScores, todayInterruptions]);
+    return {
+      today: makePeriod(ranges.today),
+      yesterday: makePeriod(ranges.yesterday),
+      week: makePeriod(ranges.week)
+    };
+  }, [sessions, scores, interruptions, tasks]);
 
   if (!ready) {
     return null;
   }
 
-  const currentSummary =
-    period === "today" ? todaySummary : MOCK_STATS_SUMMARY[period];
-  const rawDetails =
-    period === "today" ? todayDetails : MOCK_STATS_DETAILS[period];
+  if (sessions.length === 0 && scores.length === 0) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFB] px-6 py-16 dark:bg-background-dark">
+        <EmptyState
+          icon="insights"
+          title="开始计时,记录你的学习时光"
+          description="一旦有专注记录，这里就会展示数据趋势。"
+          actionLabel="去计时"
+          onAction={() => router.push("/timer")}
+        />
+        <BottomNav />
+      </div>
+    );
+  }
+
+  const currentSummary = periodData[period].summary;
+  const rawDetails = periodData[period].details;
   const currentDetails = showAllDetails ? rawDetails : rawDetails.slice(0, 3);
-  const totalInterruptions = rawDetails.reduce(
-    (sum, item) => sum + item.interruptions,
-    0
-  );
+  const totalInterruptions = periodData[period].totalInterruptions;
 
   return (
     <div className="min-h-screen bg-[#F8FAFB] pb-36 dark:bg-background-dark">

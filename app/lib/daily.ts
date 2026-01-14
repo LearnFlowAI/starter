@@ -75,6 +75,61 @@ export type DailyTrendPoint = {
   minutes: number;
 };
 
+export type RangeSummary = {
+  totalMinutes: number;
+  totalPoints: number;
+  sessionCount: number;
+};
+
+export function getStatsForDateRange(
+  sessions: SessionEntry[],
+  scores: ScoreEntry[],
+  startDate: Date,
+  endDate: Date
+): RangeSummary {
+  const endBoundary = new Date(endDate);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const isStartOfLocalDay =
+    endBoundary.getHours() === 0 &&
+    endBoundary.getMinutes() === 0 &&
+    endBoundary.getSeconds() === 0 &&
+    endBoundary.getMilliseconds() === 0;
+  const isStartOfUtcDay =
+    endBoundary.getUTCHours() === 0 &&
+    endBoundary.getUTCMinutes() === 0 &&
+    endBoundary.getUTCSeconds() === 0 &&
+    endBoundary.getUTCMilliseconds() === 0;
+
+  if (endBoundary.getTime() <= startDate.getTime()) {
+    endBoundary.setTime(startDate.getTime() + dayMs - 1);
+  } else if (isStartOfLocalDay || isStartOfUtcDay) {
+    endBoundary.setTime(endBoundary.getTime() + dayMs - 1);
+  }
+
+  const inRange = (value: string) => {
+    const date = new Date(value);
+    return date >= startDate && date <= endBoundary;
+  };
+
+  const filteredSessions = sessions.filter((session) => inRange(session.endedAt));
+  const totalMinutes = filteredSessions.reduce(
+    (sum, session) => sum + Math.ceil(session.seconds / 60),
+    0
+  );
+
+  const scoreMap = new Map(scores.map((score) => [score.sessionId, score.points]));
+  const totalPoints = filteredSessions.reduce(
+    (sum, session) => sum + (scoreMap.get(session.id) ?? 0),
+    0
+  );
+
+  return {
+    totalMinutes,
+    totalPoints,
+    sessionCount: filteredSessions.length
+  };
+}
+
 export function buildWeeklyTrend(
   summaries: DailySummary[],
   count = 7,

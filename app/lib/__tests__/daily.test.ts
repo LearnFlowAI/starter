@@ -1,5 +1,10 @@
 import type { ScoreEntry, SessionEntry } from "../models";
-import { buildWeeklyTrend, createDailySummaries, formatDate } from "../daily";
+import {
+  buildWeeklyTrend,
+  createDailySummaries,
+  formatDate,
+  getStatsForDateRange
+} from "../daily";
 
 describe("日报汇总 createDailySummaries", () => {
   it("按天汇总会话与积分", () => {
@@ -133,6 +138,80 @@ describe("趋势构建 buildWeeklyTrend", () => {
     expect(trend[5].minutes).toBe(20);
     expect(trend[4].date).toBe("2025-01-03");
     expect(trend[4].minutes).toBe(15);
+  });
+});
+
+describe("区间统计 getStatsForDateRange", () => {
+  it("按时间范围汇总分钟与积分", () => {
+    const sessions: SessionEntry[] = [
+      {
+        id: "ses_1",
+        taskId: "t1",
+        seconds: 600,
+        pauseCount: 0,
+        startedAt: "2025-01-05T08:00:00.000Z",
+        endedAt: "2025-01-05T08:10:00.000Z"
+      },
+      {
+        id: "ses_2",
+        taskId: "t2",
+        seconds: 900,
+        pauseCount: 0,
+        startedAt: "2025-01-06T08:00:00.000Z",
+        endedAt: "2025-01-06T08:15:00.000Z"
+      }
+    ];
+    const scores: ScoreEntry[] = [
+      {
+        id: "scr_1",
+        sessionId: "ses_1",
+        taskId: "t1",
+        points: 20,
+        pauseCount: 0,
+        createdAt: "2025-01-05T08:10:00.000Z"
+      }
+    ];
+
+    const start = new Date("2025-01-05T00:00:00.000Z");
+    const end = new Date("2025-01-05T23:59:59.999Z");
+
+    const summary = getStatsForDateRange(sessions, scores, start, end);
+
+    expect(summary.totalMinutes).toBe(10);
+    expect(summary.totalPoints).toBe(20);
+    expect(summary.sessionCount).toBe(1);
+  });
+
+  it("结束日期为当天 0 点时覆盖整天", () => {
+    const sessions: SessionEntry[] = [
+      {
+        id: "ses_3",
+        taskId: "t3",
+        seconds: 1800,
+        pauseCount: 0,
+        startedAt: "2025-01-07T20:00:00.000Z",
+        endedAt: "2025-01-07T20:30:00.000Z"
+      }
+    ];
+    const scores: ScoreEntry[] = [
+      {
+        id: "scr_3",
+        sessionId: "ses_3",
+        taskId: "t3",
+        points: 30,
+        pauseCount: 0,
+        createdAt: "2025-01-07T20:30:00.000Z"
+      }
+    ];
+
+    const start = new Date("2025-01-07T00:00:00.000Z");
+    const end = new Date("2025-01-07T00:00:00.000Z");
+
+    const summary = getStatsForDateRange(sessions, scores, start, end);
+
+    expect(summary.totalMinutes).toBe(30);
+    expect(summary.totalPoints).toBe(30);
+    expect(summary.sessionCount).toBe(1);
   });
 });
 
