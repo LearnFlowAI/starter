@@ -3,16 +3,8 @@
 import { useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
+import type { InterruptionLog } from "../lib/models";
 import { useLocalState } from "../lib/storage";
-
-type InterruptionLog = {
-  id: string;
-  reasonId: string;
-  duration: number;
-  createdAt: string;
-  taskId: string;
-  sessionId: string;
-};
 
 const REASON_META: Record<
   string,

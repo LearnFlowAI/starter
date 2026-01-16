@@ -4,18 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { defaultTasks } from "../lib/defaults";
 import { calculateSessionPoints } from "../lib/scoring";
-import type { ScoreEntry, SessionEntry, Task } from "../lib/models";
+import type { InterruptionLog, ScoreEntry, SessionEntry, Task } from "../lib/models";
 import { uid, useLocalState } from "../lib/storage";
 import { useTheme } from "../lib/theme";
-
-type InterruptionLog = {
-  id: string;
-  reasonId: string;
-  duration: number;
-  createdAt: string;
-  taskId: string;
-  sessionId: string;
-};
 
 export default function TimerPage() {
   const router = useRouter();
