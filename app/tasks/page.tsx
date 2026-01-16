@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import EmptyState from "../components/EmptyState";
 import { defaultTasks } from "../lib/defaults";
 import type { Task } from "../lib/models";
 import { uid, useLocalState } from "../lib/storage";
@@ -90,6 +91,16 @@ export default function TasksPage() {
               <span className="material-icons-round">close</span>
             </button>
           </div>
+
+          {tasks.length === 0 && !editingTask && (
+            <div className="mb-8">
+              <EmptyState
+                icon="playlist_add"
+                title="创建你的第一个学习任务"
+                description="点击 + 创建新任务"
+              />
+            </div>
+          )}
 
           <div className="mb-8 grid grid-cols-3 gap-x-4 gap-y-8">
             {(Object.keys(TASK_CONFIG) as TaskType[]).map((key) => {

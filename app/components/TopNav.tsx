@@ -9,7 +9,10 @@ const navItems = [
 
 export default function TopNav() {
   return (
-    <nav className="card flex flex-col gap-4 rounded-[28px] px-5 py-4 shadow-soft sm:flex-row sm:items-center sm:justify-between">
+    <nav
+      className="card flex flex-col gap-4 rounded-[28px] px-5 py-4 shadow-soft sm:flex-row sm:items-center sm:justify-between"
+      aria-label="顶部导航"
+    >
       <div className="flex items-center gap-3 sm:gap-4">
         <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-ink/10 bg-white/80">
           <svg

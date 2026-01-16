@@ -21,6 +21,16 @@ describe("任务页", () => {
     ).toBeInTheDocument();
   });
 
+  it("无任务时显示空状态引导", async () => {
+    window.localStorage.setItem("lf_tasks", "[]");
+
+    render(<TasksPage />);
+
+    expect(
+      await screen.findByText("创建你的第一个学习任务")
+    ).toBeInTheDocument();
+  });
+
   it("新增任务写入本地存储", async () => {
     const user = userEvent.setup();
     render(<TasksPage />);

@@ -43,6 +43,7 @@ export default function BottomNav() {
               className={`flex flex-col items-center justify-center transition-colors active:scale-90 ${
                 isActive ? "text-primary" : "text-gray-400"
               }`}
+              aria-current={isActive ? "page" : undefined}
               aria-label={item.label}
             >
               <span className="material-icons-round text-2xl">
