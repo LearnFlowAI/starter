@@ -3,6 +3,22 @@ import "@testing-library/jest-dom/vitest";
 import React from "react";
 import { vi } from "vitest";
 
+// Mock next/font/google
+vi.mock("next/font/google", () => ({
+  Poppins: () => ({
+    className: "mock-poppins-font"
+  }),
+  Noto_Sans_SC: () => ({
+    className: "mock-noto-sans-sc-font"
+  }),
+  Nunito: () => ({
+    className: "mock-nunito-font"
+  }),
+  Plus_Jakarta_Sans: () => ({
+    className: "mock-jakarta-font"
+  })
+}));
+
 // 用普通 <a> 替换 Next.js Link，避免测试中依赖运行时。
 vi.mock("next/link", () => ({
   default: ({ href, children, ...props }: { href: string; children: React.ReactNode }) =>
