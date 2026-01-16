@@ -58,10 +58,15 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-background-light text-text-main-light antialiased transition-colors duration-300">
-        <AppProvider>
-          <SwRegister />
-          {children}
-        </AppProvider>
+        <div
+          data-testid="mobile-view-container"
+          className="mobile-view-container"
+        >
+          <AppProvider>
+            <SwRegister />
+            {children}
+          </AppProvider>
+        </div>
       </body>
     </html>
   );
