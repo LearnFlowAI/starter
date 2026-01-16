@@ -14,6 +14,15 @@ body {
   padding: 0;
 }
 
+.mobile-view-container {
+  max-width: 414px;
+  margin: 0 auto;
+  min-height: 100vh;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
