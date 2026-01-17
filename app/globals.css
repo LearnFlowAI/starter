@@ -14,14 +14,7 @@ body {
   padding: 0;
 }
 
-.mobile-view-container {
-  max-width: 414px;
-  margin: 0 auto;
-  min-height: 100vh;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-  position: relative;
-  overflow: hidden;
-}
+
 
 .no-scrollbar::-webkit-scrollbar {
   display: none;
@@ -88,3 +81,11 @@ body {
 .animate-fade-in-up {
   animation: fadeInUp 0.4s ease-out forwards;
 }
+
+@keyframes soft-ripple {
+  0% { transform: scale(1); opacity: 0.7; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+.animate-soft-ripple-1 { animation: soft-ripple 4s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+.animate-soft-ripple-2 { animation: soft-ripple 4s cubic-bezier(0.16, 1, 0.3, 1) infinite 1.3s; }
+.animate-soft-ripple-3 { animation: soft-ripple 4s cubic-bezier(0.16, 1, 0.3, 1) infinite 2.6s; }

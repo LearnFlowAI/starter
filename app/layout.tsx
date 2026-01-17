@@ -60,7 +60,7 @@ export default function RootLayout({
       <body className="bg-background-light text-text-main-light antialiased transition-colors duration-300">
         <div
           data-testid="mobile-view-container"
-          className="mobile-view-container"
+          className="max-w-md mx-auto min-h-screen relative overflow-hidden bg-background-light dark:bg-background-dark transition-colors duration-300"
         >
           <AppProvider>
             <SwRegister />
