@@ -9,6 +9,9 @@ const Progress: React.FC<ProgressProps> = ({ value, className, ...props }) => {
 
   return (
     <progress
+      aria-valuenow={clampedValue}
+      aria-valuemin={0}
+      aria-valuemax={100}
       max={100}
       value={clampedValue}
       className={`w-full h-2 rounded-full bg-gray-200 dark:bg-gray-700 accent-primary ${className || ''}`}
