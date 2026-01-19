@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 import Page from '../page';
 import { MOCK_TASKS } from '../../../lib/constants'; // Adjusted path
 import { Task } from '../../../types'; // Adjusted path
+import AppProvider from '../../components/AppProvider';
 
 // Mock useRouter from next/navigation
 const mockPush = vi.fn();
@@ -50,8 +51,14 @@ describe('Dashboard Page', () => {
     localStorageMock.setItem('lf_all_tasks', JSON.stringify(MOCK_TASKS)); // Set some mock tasks
   });
 
+  const renderPage = () => render(
+    <AppProvider>
+      <Page />
+    </AppProvider>
+  );
+
   it('renders welcome message and "今日专注概览" section', async () => {
-    render(<Page />);
+    renderPage();
 
     expect(screen.getByText('你好, 小明!')).toBeInTheDocument();
     expect(screen.getByText('我们来学点新东西吧。')).toBeInTheDocument();
@@ -59,18 +66,30 @@ describe('Dashboard Page', () => {
   });
 
   it('renders NavBar component', () => {
-    render(<Page />);
+    renderPage();
     expect(screen.getByRole('button', { name: 'Dashboard' })).toBeInTheDocument();
   });
 
   it('renders PieChart components', () => {
-    render(<Page />);
+    renderPage();
     expect(screen.getByTestId('mock-pie-chart')).toBeInTheDocument();
     expect(screen.getByTestId('mock-pie')).toBeInTheDocument();
   });
 
+  it('opens notification drawer from bell button', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /打开通知/i }));
+    expect(await screen.findByText(/通知中心/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /关闭通知/i }));
+    await waitFor(() => {
+      expect(screen.queryByText(/通知中心/i)).not.toBeInTheDocument();
+    });
+  });
+
   it('renders task cards from MOCK_TASKS', async () => {
-    render(<Page />);
+    renderPage();
 
     await waitFor(() => {
         expect(screen.getByRole('heading', { name: /数学 - 课后练习/i })).toBeInTheDocument();
@@ -79,7 +98,35 @@ describe('Dashboard Page', () => {
     });
   });
 
-  it.skip('toggles "查看全部" button to show/hide tasks', async () => {
+  it('opens edit modal with prefilled fields and saves updates', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getAllByRole('button', { name: /编辑任务/i })[0]);
+    expect(await screen.findByText(/编辑任务/i)).toBeInTheDocument();
+
+    const nameInput = screen.getByLabelText(/任务名称/i) as HTMLInputElement;
+    fireEvent.change(nameInput, { target: { value: '新任务名' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /保存修改/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /数学 - 新任务名/i })).toBeInTheDocument();
+    });
+  });
+
+  it('confirms delete and removes task', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getAllByRole('button', { name: /删除任务/i })[0]);
+    expect(await screen.findByRole('heading', { name: /确认删除/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /确认删除/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: /数学 - 课后练习/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it('toggles "查看全部" button to show/hide tasks', async () => {
     // To properly test this, we need more than 3 tasks to ensure slicing happens
     const manyTasks = Array.from({ length: 5 }).map((_, i) => ({
       ...MOCK_TASKS[0],
@@ -88,30 +135,34 @@ describe('Dashboard Page', () => {
     }));
     localStorageMock.setItem('lf_all_tasks', JSON.stringify(manyTasks));
     
-    render(<Page />);
+    renderPage();
 
-    // Initially, only 3 tasks should be visible (MOCK_TASKS are 3, so all visible here)
-    // To test showAllTasks toggle, need to ensure the logic works.
-    // Let's assume for MOCK_TASKS (3 tasks), "查看全部" is "收起" if all are shown,
-    // or not present if less than 3. The current MOCK_TASKS have 3, so no "查看全部" initially.
-    // If we have > 3 tasks, then "查看全部" appears.
-
-    // Let's use the manyTasks setup
-    expect(screen.queryByText(/Task 4/i)).not.toBeInTheDocument(); // Task 4 should not be visible initially
+    expect(
+      screen.queryByRole('heading', { name: /Task 4/i })
+    ).not.toBeInTheDocument(); // Task 4 should not be visible initially
     
     const toggleButton = screen.getByRole('button', { name: /查看全部/i });
     fireEvent.click(toggleButton);
 
     await waitFor(() => {
       expect(screen.getByText(/收起/i)).toBeInTheDocument();
-      expect(screen.getByText(/Task 4/i)).toBeInTheDocument(); // Task 4 should now be visible
+      expect(screen.getByRole('heading', { name: /Task 4/i })).toBeInTheDocument(); // Task 4 should now be visible
     });
 
     fireEvent.click(toggleButton); // Click again to hide
     await waitFor(() => {
       expect(screen.getByText(/查看全部/i)).toBeInTheDocument();
-      expect(screen.queryByText(/Task 4/i)).not.toBeInTheDocument(); // Task 4 should be hidden again
+      expect(
+        screen.queryByRole('heading', { name: /Task 4/i })
+      ).not.toBeInTheDocument(); // Task 4 should be hidden again
     });
+  });
+
+  it('disables "查看全部" when task count <= 3', () => {
+    renderPage();
+
+    const toggleButton = screen.getByRole('button', { name: /已全部展示/i });
+    expect(toggleButton).toBeDisabled();
   });
 
   it('calls onStartTask when an uncompleted task is clicked', async () => {
@@ -126,7 +177,7 @@ describe('Dashboard Page', () => {
     // if the page took it. Since it uses internal state, this test will just check
     // if a task name is clickable.
 
-    render(<Page />);
+    renderPage();
     const uncompletedTask = screen.getByRole('heading', { name: /数学 - 课后练习/i }); // An uncompleted task from MOCK_TASKS
     fireEvent.click(uncompletedTask);
     // Cannot directly assert onStartTask as it's internal to the page.
