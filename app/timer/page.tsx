@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { MOCK_TASKS } from '../../lib/constants';
 import type { Task, AppView } from '../../types';
+import type { SessionEntry } from '../lib/models';
+import { useLocalState, uid } from '../lib/storage';
 import Button from '../components/ui/Button';
 
 // TODO: Implement Gemini TTS
@@ -11,29 +13,71 @@ const speak = async (text: string) => {
   console.log(`TTS (stubbed): ${text}`);
 };
 
-export default function TimerPage() {
+function TimerComponent() {
   const router = useRouter();
-  
-  // For now, we'll use a hardcoded task and manage state locally
-  // In a real app, this would come from a global state/context
-  const [task, setTask] = useState<Task>(MOCK_TASKS[0]);
-  const [remainingSeconds, setRemainingSeconds] = useState(task.duration * 60);
+  const searchParams = useSearchParams();
+
+  const [tasks] = useLocalState<Task[]>('lf_all_tasks', MOCK_TASKS);
+  const [activeTaskId] = useLocalState<string | null>('lf_active_task_id', null);
+  const [, setSessions] = useLocalState<SessionEntry[]>('lf_sessions', []);
+
+  const [task, setTask] = useState<Task | null>(null);
+  const [sessionId] = useState(() => uid('sess'));
+  const [sessionStartTime] = useState(() => new Date().toISOString());
+
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [isActive, setIsActive] = useState(true);
   const [interruptionCount, setInterruptionCount] = useState(0);
   const [pauseStartTime, setPauseStartTime] = useState<number | null>(null);
 
   const [isSoundOn, setIsSoundOn] = useState(false);
-  const [pressProgress, setPressProgress] = useState(0); 
+  const [pressProgress, setPressProgress] = useState(0);
   const [currentPauseDuration, setCurrentPauseDuration] = useState(0);
   const pressTimerRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const pauseIntervalRef = useRef<number | null>(null);
-  
-  const PRESS_DURATION = 2000; 
 
-  const totalSeconds = task.duration * 60;
+  const PRESS_DURATION = 2000;
+
+  useEffect(() => {
+    const activeTask = tasks.find(t => t.id === activeTaskId);
+    if (activeTask) {
+      setTask(activeTask);
+      const initialSeconds = searchParams.get('remaining');
+      if (initialSeconds) {
+        setRemainingSeconds(Number.parseInt(initialSeconds, 10));
+      } else {
+        setRemainingSeconds(activeTask.duration * 60);
+      }
+    } else {
+       // If no active task, redirect or show an error
+       router.replace('/dashboard');
+    }
+  }, [activeTaskId, tasks, router, searchParams]);
+
+  useEffect(() => {
+    // This effect handles resuming from the pause-reason page
+    if (searchParams.get('resume')) {
+      setIsActive(true);
+      // Clean up the URL
+      router.replace('/timer', undefined);
+    }
+  }, [searchParams, router]);
+
+  useEffect(() => {
+    if (activeTaskId) {
+      const status = { taskId: activeTaskId, isActive };
+      localStorage.setItem('lf_timer_status', JSON.stringify(status));
+    }
+    // Cleanup on unmount
+    return () => {
+      localStorage.removeItem('lf_timer_status');
+    };
+  }, [isActive, activeTaskId]);
+
+  const totalSeconds = useMemo(() => (task ? task.duration * 60 : 0), [task]);
   const isOvertime = remainingSeconds < 0;
-  
+
   const formatTime = (totalSec: number) => {
     const absSec = Math.abs(totalSec);
     const mins = Math.floor(absSec / 60);
@@ -46,18 +90,33 @@ export default function TimerPage() {
   };
 
   const onTogglePause = () => {
-    setIsActive(!isActive);
-    if (isActive) { // If it was active, now it's paused
+    if (isActive) {
+      // Pause the timer and go to select a reason
+      setIsActive(false);
       setPauseStartTime(Date.now());
       setInterruptionCount(prev => prev + 1);
-    } else { // If it was paused, now it's active
+      router.push(`/pause-reason?sessionId=${sessionId}&taskId=${activeTaskId}&remaining=${remainingSeconds}`);
+    } else {
+      // Resume timer
+      setIsActive(true);
       setPauseStartTime(null);
     }
   };
 
   const onFinish = () => {
-    // Navigate to a summary page or back to dashboard
-    router.push('/dashboard');
+    if (!task) return;
+
+    const session: SessionEntry = {
+      id: sessionId,
+      taskId: task.id,
+      seconds: totalSeconds - remainingSeconds, // actual focused seconds
+      pauseCount: interruptionCount,
+      startedAt: sessionStartTime,
+      endedAt: new Date().toISOString(),
+    };
+
+    setSessions(prev => [session, ...prev]);
+    router.push('/record');
   };
 
   const handleToggleSound = () => {
@@ -70,7 +129,7 @@ export default function TimerPage() {
     if (isSoundOn) speak("恭喜！你已完成本次专注任务。");
     onFinish();
   };
-
+  
   useEffect(() => {
     if (!isActive && pauseStartTime) {
       pauseIntervalRef.current = window.setInterval(() => {
@@ -88,16 +147,16 @@ export default function TimerPage() {
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if(isActive) {
-        timer = setInterval(() => {
-            setRemainingSeconds(prev => prev - 1);
-        }, 1000);
+    if (isActive) {
+      timer = setInterval(() => {
+        setRemainingSeconds(prev => prev - 1);
+      }, 1000);
     }
     return () => clearInterval(timer);
-  }, [isActive])
-
-  const strokeDashoffset = isOvertime 
-    ? 0 
+  }, [isActive]);
+  
+  const strokeDashoffset = isOvertime
+    ? 0
     : 282.7 * (1 - remainingSeconds / totalSeconds);
 
   const startPress = () => {
@@ -126,6 +185,14 @@ export default function TimerPage() {
     return () => { if (pressTimerRef.current) cancelAnimationFrame(pressTimerRef.current); };
   }, []);
 
+  if (!task) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p>Loading task...</p>
+      </div>
+    );
+  }
+  
   return (
     <div className={`min-h-screen flex flex-col items-center px-6 transition-colors duration-1000 ${isActive ? (isOvertime ? 'bg-orange-50/50 dark:bg-orange-950/20' : 'bg-teal-50/60 dark:bg-teal-950/20') : 'bg-gray-100 dark:bg-gray-900'}`}>
       <div className={`fixed inset-0 pointer-events-none transition-opacity duration-1000 ${isActive ? 'opacity-100' : 'opacity-0'}`}>
@@ -262,4 +329,12 @@ export default function TimerPage() {
       </footer>
     </div>
   );
-};
+}
+
+export default function TimerPage() {
+  return (
+    <React.Suspense fallback={<div>Loading...</div>}>
+      <TimerComponent />
+    </React.Suspense>
+  );
+}

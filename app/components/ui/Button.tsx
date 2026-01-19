@@ -1,7 +1,7 @@
 import type React from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'icon' | 'fab';
+  variant?: 'primary' | 'secondary' | 'icon' | 'fab' | 'ghost';
   icon?: string; // Material Icon name
 }
 
@@ -33,6 +33,9 @@ const Button: React.FC<ButtonProps> = ({
       variantStyles = 'w-14 h-14 rounded-full bg-primary text-white shadow-glow hover:scale-105 active:scale-95';
       iconOnlyClass = 'w-14 h-14';
       iconSizeClass = 'text-3xl'; // Specific icon size for FAB
+      break;
+    case 'ghost':
+      variantStyles = 'bg-transparent text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 py-2 px-4 rounded';
       break;
   }
 

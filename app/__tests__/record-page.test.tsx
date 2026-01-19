@@ -29,11 +29,17 @@ describe("记录页", () => {
   it("保存记录写入本地存储", async () => {
     const user = userEvent.setup();
     window.localStorage.setItem(
+      "lf_all_tasks",
+      JSON.stringify([
+        { id: '1', name: '课后练习', type: 'math', duration: 45, progress: 80, rating: 3, isCompleted: false },
+      ])
+    );
+    window.localStorage.setItem(
       "lf_sessions",
       JSON.stringify([
         {
           id: "ses_1",
-          taskId: "t1",
+          taskId: "1",
           seconds: 1200,
           pauseCount: 0,
           startedAt: new Date().toISOString(),
@@ -47,7 +53,7 @@ describe("记录页", () => {
         {
           id: "scr_1",
           sessionId: "ses_1",
-          taskId: "t1",
+          taskId: "1",
           points: 26,
           seconds: 1200,
           pauseCount: 0,
@@ -65,7 +71,7 @@ describe("记录页", () => {
       window.localStorage.getItem("lf_records") ?? "[]"
     ) as Array<{ taskId: string; points: number }>;
     expect(stored).toHaveLength(1);
-    expect(stored[0].taskId).toBe("t1");
+    expect(stored[0].taskId).toBe("1");
     expect(stored[0].points).toBe(170);
   });
 });

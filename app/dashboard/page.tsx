@@ -7,14 +7,15 @@ import { useRouter } from 'next/navigation';
 import { TASK_CONFIG, MOCK_TASKS } from '../../lib/constants';
 import NavBar from '../components/NavBar';
 import type { Task, AppView } from '../../types';
+import { useLocalState } from '../lib/storage';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Progress from '../components/ui/Progress';
 import Badge from '../components/ui/Badge';
 
 export default function DashboardPage() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [activeTaskId, setActiveTaskId] = useState<string | undefined>(undefined);
+  const [tasks, setTasks] = useLocalState<Task[]>('lf_all_tasks', MOCK_TASKS);
+  const [activeTaskId, setActiveTaskId] = useLocalState<string | null>('lf_active_task_id', null);
   const [isTimerActive, setIsTimerActive] = useState<boolean>(false);
   const [showAllTasks, setShowAllTasks] = useState(false);
   const [focusView, setFocusView] = useState<'planned' | 'actual'>('planned');
@@ -22,17 +23,15 @@ export default function DashboardPage() {
 
   const router = useRouter();
 
-  useEffect(() => {
-    const savedTasks = localStorage.getItem('lf_all_tasks');
-    if (savedTasks) {
-      setTasks(JSON.parse(savedTasks));
-    } else {
-      setTasks(MOCK_TASKS);
-    }
-  }, []);
-
   const onNavigate = (view: AppView) => {
     router.push(`/${view}`);
+  };
+
+  const handleTaskClick = (task: Task) => {
+    if (!task.isCompleted) {
+      setActiveTaskId(task.id);
+      router.push('/timer');
+    }
   };
 
   const onToggleTheme = () => {
@@ -42,9 +41,29 @@ export default function DashboardPage() {
   const completedTasksCount = tasks.filter(t => t.isCompleted).length;
   const allTasksCompleted = tasks.length > 0 && tasks.every(t => t.isCompleted);
 
-  if (focusView === 'actual' && !allTasksCompleted) {
-    setFocusView('planned');
-  }
+  useEffect(() => {
+    if (focusView === 'actual' && !allTasksCompleted) {
+      setFocusView('planned');
+    }
+  }, [focusView, allTasksCompleted]);
+
+  // This effect polls localStorage to check if the timer is active elsewhere
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const timerStatus = localStorage.getItem('lf_timer_status');
+      if (timerStatus) {
+        const { taskId, isActive } = JSON.parse(timerStatus);
+        setActiveTaskId(taskId);
+        setIsTimerActive(isActive);
+      } else {
+        if(activeTaskId) setActiveTaskId(null);
+        setIsTimerActive(false);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [activeTaskId, setActiveTaskId]);
+
 
   const plannedChartData = tasks.map(t => ({
     name: t.name,
@@ -261,7 +280,7 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     className="flex items-center gap-4 cursor-pointer flex-1 text-left"
-                    onClick={() => { if (!task.isCompleted) router.push('/timer'); }}
+                    onClick={() => handleTaskClick(task)}
                   >
                     <div className={`w-12 h-12 rounded-2xl ${config.bgColor} dark:bg-opacity-10 flex items-center justify-center ${config.color}`}>
                       <span className="material-icons-round text-2xl">{config.icon}</span>

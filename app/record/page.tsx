@@ -2,17 +2,17 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { Task } from "../../types";
 import type {
   InterruptionLog,
   RecordEntry,
   ScoreEntry,
   SessionEntry,
-  Task
 } from "../lib/models";
-import { defaultTasks } from "../lib/defaults";
 import { calculateSessionPoints } from "../lib/scoring";
 import { uid, useLocalState } from "../lib/storage";
 import EmptyState from "../components/EmptyState";
+import { MOCK_TASKS } from "../../lib/constants";
 
 const REASON_MAP: Record<
   string,
@@ -59,8 +59,8 @@ const REASON_MAP: Record<
 export default function RecordPage() {
   const router = useRouter();
   const [tasks, setTasks, tasksReady] = useLocalState<Task[]>(
-    "lf_tasks",
-    defaultTasks
+    "lf_all_tasks",
+    MOCK_TASKS
   );
   const [sessions, , sessionsReady] = useLocalState<SessionEntry[]>(
     "lf_sessions",
@@ -140,7 +140,7 @@ export default function RecordPage() {
   const totalInterruptions = sessionInterruptions.length;
   const actualMins = Math.floor(latestSession.seconds / 60);
   const actualSecs = latestSession.seconds % 60;
-  const targetMins = Math.floor(activeTask.plannedMinutes);
+  const targetMins = Math.floor(activeTask.duration);
 
   const rating = completionLevel === "best" ? 5 : completionLevel === "good" ? 4 : 3;
   const writingStars =
@@ -182,8 +182,8 @@ export default function RecordPage() {
     const entry: RecordEntry = {
       id: uid("rec"),
       taskId: activeTask.id,
-      title: `${activeTask.title} ${activeTask.plannedMinutes} 分钟`,
-      subject: activeTask.subject,
+      title: `${activeTask.name} ${activeTask.duration} 分钟`,
+      subject: activeTask.type,
       minutes: Math.max(1, Math.round(latestSession.seconds / 60)),
       rating,
       mistakeCount: 0,
@@ -198,7 +198,7 @@ export default function RecordPage() {
     setRecords((prev) => [entry, ...prev]);
     setTasks((prev) =>
       prev.map((task) =>
-        task.id === activeTask.id ? { ...task, status: "done" } : task
+        task.id === activeTask.id ? { ...task, isCompleted: true, progress: 100 } : task
       )
     );
     router.push("/dashboard");
@@ -216,7 +216,7 @@ export default function RecordPage() {
           <span className="material-icons-round">arrow_back</span>
         </button>
         <div className="text-sm font-black uppercase tracking-wide text-gray-700 dark:text-gray-200">
-          {activeTask.title}
+          {activeTask.name}
         </div>
         <div className="rounded-full bg-white p-2 text-slate-400 shadow-sm dark:bg-card-dark">
           <span className="material-icons-round">share</span>

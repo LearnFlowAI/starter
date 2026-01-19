@@ -1,13 +1,21 @@
 'use client';
 
-import type React from 'react';
+import React from 'react';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Button from '../components/ui/Button';
+import { useLocalState, uid } from '../lib/storage';
+import type { InterruptionLog } from '../lib/models';
 
-export default function PauseReasonPage() {
+function PauseReasonComponent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
+  const [, setInterruptions] = useLocalState<InterruptionLog[]>('lf_interruptions', []);
+
+  const sessionId = searchParams.get('sessionId');
+  const taskId = searchParams.get('taskId');
+  const remaining = searchParams.get('remaining');
 
   const reasons = [
     { id: 'water', icon: 'water_drop', label: '喝水/如厕', color: 'bg-sky-100 text-sky-500' },
@@ -18,14 +26,29 @@ export default function PauseReasonPage() {
     { id: 'other', icon: 'more_horiz', label: '其他', color: 'bg-emerald-100 text-emerald-500' },
   ];
 
+  const returnToTimer = () => {
+    router.replace(`/timer?resume=true&remaining=${remaining}`);
+  };
+
   const onConfirm = (reasonId: string) => {
-    // In a real app, this would update a global state with the pause reason
-    console.log('Pausing with reason:', reasonId);
-    router.push('/timer'); // Navigate back to the timer
+    if (sessionId && taskId) {
+      const newInterruption: InterruptionLog = {
+        id: uid('int'),
+        sessionId,
+        taskId,
+        reasonId,
+        // The actual duration will be calculated when the next interruption happens or session ends.
+        // For simplicity, we log the event here. A more complex implementation could store pause start times.
+        duration: 0, 
+        createdAt: new Date().toISOString(),
+      };
+      setInterruptions(prev => [newInterruption, ...prev]);
+    }
+    returnToTimer();
   };
 
   const onCancel = () => {
-    router.back();
+    returnToTimer();
   };
 
   const handleOverlayKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
@@ -98,4 +121,12 @@ export default function PauseReasonPage() {
       </div>
     </div>
   );
-};
+}
+
+export default function PauseReasonPage() {
+  return (
+    <React.Suspense fallback={<div>Loading...</div>}>
+      <PauseReasonComponent />
+    </React.Suspense>
+  );
+}
