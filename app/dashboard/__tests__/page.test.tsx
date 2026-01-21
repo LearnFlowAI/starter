@@ -88,6 +88,17 @@ describe('Dashboard Page', () => {
     });
   });
 
+  it('closes edit modal when notifications open', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getAllByRole('button', { name: /编辑任务/i })[0]);
+    expect(await screen.findByRole('heading', { name: /编辑任务/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /打开通知/i }));
+    expect(await screen.findByText(/通知中心/i)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /编辑任务/i })).not.toBeInTheDocument();
+  });
+
   it('renders task cards from MOCK_TASKS', async () => {
     renderPage();
 
@@ -96,6 +107,35 @@ describe('Dashboard Page', () => {
         expect(screen.getByRole('heading', { name: /英语 - 背诵单词/i })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: /科学 - 科学实验/i })).toBeInTheDocument();
     });
+  });
+
+  it('navigates to timer when a task card is clicked', async () => {
+    renderPage();
+
+    const taskButton = await screen.findByRole('button', { name: /数学 - 课后练习/i });
+    fireEvent.click(taskButton);
+
+    expect(mockPush).toHaveBeenCalledWith('/timer');
+  });
+
+  it('does not navigate to timer when a completed task is clicked', async () => {
+    renderPage();
+
+    const completedTaskButton = await screen.findByRole('button', { name: /英语 - 背诵单词/i });
+    fireEvent.click(completedTaskButton);
+
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('renders edit drawer full-width and bottom-aligned on all breakpoints', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getAllByRole('button', { name: /编辑任务/i })[0]);
+    const wrapper = await screen.findByTestId('modal-content-wrapper');
+
+    expect(wrapper.className).toContain('w-full');
+    expect(wrapper.className).toContain('rounded-t');
+    expect(wrapper.className).not.toContain('sm:w');
   });
 
   it('opens edit modal with prefilled fields and saves updates', async () => {
@@ -114,11 +154,22 @@ describe('Dashboard Page', () => {
     });
   });
 
+  it('adds aria attributes to the duration range input', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getAllByRole('button', { name: /编辑任务/i })[0]);
+    const slider = await screen.findByRole('slider');
+
+    expect(slider).toHaveAttribute('aria-valuemin', '5');
+    expect(slider).toHaveAttribute('aria-valuemax', '120');
+    expect(slider).toHaveAttribute('aria-valuenow', '45');
+  });
+
   it('confirms delete and removes task', async () => {
     renderPage();
 
     fireEvent.click(screen.getAllByRole('button', { name: /删除任务/i })[0]);
-    expect(await screen.findByRole('heading', { name: /确认删除/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /确定要删除吗/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /确认删除/i }));
     await waitFor(() => {

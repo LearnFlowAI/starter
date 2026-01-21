@@ -29,6 +29,7 @@ export default function DashboardPage() {
   const [draftName, setDraftName] = useState('');
   const [draftType, setDraftType] = useState<TaskType>('math');
   const [draftDuration, setDraftDuration] = useState(30);
+  const [draftGoal, setDraftGoal] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
 
@@ -40,10 +41,11 @@ export default function DashboardPage() {
   };
 
   const handleTaskClick = (task: Task) => {
-    if (!task.isCompleted) {
-      setActiveTaskId(task.id);
-      router.push('/timer');
+    if (task.isCompleted) {
+      return;
     }
+    setActiveTaskId(task.id);
+    router.push('/timer');
   };
 
   const onToggleTheme = () => {
@@ -143,11 +145,20 @@ export default function DashboardPage() {
   ];
   const hasNotifications = notifications.length > 0;
 
+  const closeOverlays = () => {
+    setIsNotificationsOpen(false);
+    setIsEditOpen(false);
+    setIsDeleteOpen(false);
+  };
+
   const handleOpenEdit = (task: Task) => {
+    setIsNotificationsOpen(false);
+    setIsDeleteOpen(false);
     setEditingTask(task);
     setDraftName(task.name);
     setDraftType(task.type);
     setDraftDuration(task.duration);
+    setDraftGoal(false);
     setIsEditOpen(true);
   };
 
@@ -171,6 +182,8 @@ export default function DashboardPage() {
   };
 
   const handleDeleteRequest = (task: Task) => {
+    setIsNotificationsOpen(false);
+    setIsEditOpen(false);
     setDeleteTarget(task);
     setIsDeleteOpen(true);
   };
@@ -211,7 +224,10 @@ export default function DashboardPage() {
           variant="icon"
           icon="notifications"
           aria-label="打开通知"
-          onClick={() => setIsNotificationsOpen(true)}
+          onClick={() => {
+            closeOverlays();
+            setIsNotificationsOpen(true);
+          }}
           className="relative text-primary bg-white dark:bg-card-dark rounded-full shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700"
         >
           <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-gray-800" />
@@ -487,16 +503,70 @@ export default function DashboardPage() {
       <Modal
         isOpen={isEditOpen}
         onClose={() => setIsEditOpen(false)}
-        contentClassName="w-full sm:w-[420px] rounded-3xl overflow-hidden"
+        overlayClassName="bg-black/35 backdrop-blur-[2px]"
+        containerClassName="items-end p-0"
+        fullBleed
+        contentClassName="w-full rounded-t-[32px] overflow-hidden self-end"
       >
-        <div className="bg-white dark:bg-gray-900 p-6 space-y-5">
+        <div className="bg-white dark:bg-gray-900 px-6 pt-4 pb-6 space-y-5">
+          <div className="flex items-center justify-between">
+            <div className="w-8" />
+            <div className="w-12 h-1.5 rounded-full bg-gray-200" />
+            <button
+              type="button"
+              aria-label="关闭编辑"
+              onClick={() => setIsEditOpen(false)}
+              className="w-8 h-8 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center"
+            >
+              <span className="material-icons-round text-base">close</span>
+            </button>
+          </div>
+
           <div>
             <h3 className="text-lg font-bold text-gray-800 dark:text-white">编辑任务</h3>
-            <p className="text-xs text-gray-400 mt-1">调整任务信息并保存到今日计划。</p>
           </div>
 
           <div className="space-y-3">
-            <label className="block text-xs font-semibold text-gray-500" htmlFor="edit-task-name">
+            <p className="text-xs font-semibold text-gray-400">选择学科</p>
+            <div className="grid grid-cols-4 gap-4">
+              {(['math', 'chinese', 'english', 'science', 'art', 'sport'] as TaskType[])
+                .filter((value, index, list) => index < 4 || value === draftType)
+                .map((value) => {
+                  const config = TASK_CONFIG[value];
+                  const isActive = draftType === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setDraftType(value)}
+                      className="flex flex-col items-center gap-2"
+                    >
+                      <span
+                        className={`w-12 h-12 rounded-2xl border flex items-center justify-center ${
+                          isActive
+                            ? 'border-[#2EE5C4] bg-[#E9FBF7]'
+                            : 'border-transparent bg-gray-50'
+                        }`}
+                      >
+                        <span
+                          className={`material-icons-round text-lg ${
+                            isActive ? 'text-[#2EE5C4]' : 'text-gray-300'
+                          }`}
+                        >
+                          {config.icon}
+                        </span>
+                      </span>
+                      <span className={`text-[11px] ${isActive ? 'text-[#2EE5C4] font-semibold' : 'text-gray-400'}`}>
+                        {config.label}
+                      </span>
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <label className="block text-xs font-semibold text-gray-400" htmlFor="edit-task-name">
               任务名称
             </label>
             <Input
@@ -504,76 +574,103 @@ export default function DashboardPage() {
               value={draftName}
               onChange={(event) => setDraftName(event.target.value)}
               placeholder="请输入任务名称"
+              className="rounded-2xl bg-gray-50 border-transparent px-4 py-3 text-sm"
             />
           </div>
 
           <div className="space-y-3">
-            <label className="block text-xs font-semibold text-gray-500" htmlFor="edit-task-type">
-              科目
-            </label>
-            <select
-              id="edit-task-type"
-              value={draftType}
-              onChange={(event) => setDraftType(event.target.value as TaskType)}
-              className="w-full border border-gray-300 rounded py-2 px-3 text-text-main-light dark:text-text-main-dark bg-card-light dark:bg-card-dark focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-colors duration-200"
-            >
-              {Object.entries(TASK_CONFIG).map(([key, config]) => (
-                <option key={key} value={key}>
-                  {config.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-3">
-            <label className="block text-xs font-semibold text-gray-500" htmlFor="edit-task-duration">
-              预计时长(分钟)
-            </label>
-            <Input
+            <div className="flex items-center justify-between text-xs font-semibold text-gray-400">
+              <span>预计时长</span>
+              <span className="text-[#2EE5C4] text-sm">{draftDuration} 分钟</span>
+            </div>
+            <input
               id="edit-task-duration"
-              type="number"
-              min={1}
+              type="range"
+              min={5}
+              max={120}
+              step={5}
               value={draftDuration}
               onChange={(event) => setDraftDuration(Number(event.target.value))}
+              aria-valuemin={5}
+              aria-valuemax={120}
+              aria-valuenow={draftDuration}
+              className="w-full accent-[#2EE5C4]"
             />
+            <div className="flex justify-between text-[10px] text-gray-300">
+              <span>5m</span>
+              <span>30m</span>
+              <span>60m</span>
+              <span>90m</span>
+              <span>120m</span>
+            </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <Button variant="ghost" onClick={() => setIsEditOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleEditSave}>
-              保存修改
-            </Button>
+          <div className="flex items-center justify-between rounded-2xl bg-gray-50 px-4 py-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-[#FFF4DB] text-[#F5B84C] flex items-center justify-center">
+                <span className="material-icons-round text-base">emoji_events</span>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-700">设为今日目标</p>
+                <p className="text-[11px] text-gray-400">完成后可获得积分奖励</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={draftGoal}
+              onClick={() => setDraftGoal((prev) => !prev)}
+              className={`w-12 h-6 rounded-full flex items-center transition ${
+                draftGoal ? 'bg-[#2EE5C4] justify-end' : 'bg-gray-200 justify-start'
+              }`}
+            >
+              <span className="w-5 h-5 bg-white rounded-full shadow-sm mx-0.5" />
+            </button>
           </div>
+
+          <button
+            type="button"
+            onClick={handleEditSave}
+            className="w-full py-3 rounded-full text-white text-base font-semibold bg-gradient-to-r from-[#2EE5C4] to-[#5BCB94] shadow-[0_12px_20px_rgba(46,229,196,0.35)]"
+          >
+            保存修改
+          </button>
         </div>
       </Modal>
 
       <Modal
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}
-        contentClassName="w-full sm:w-[360px] rounded-3xl overflow-hidden"
+        contentClassName="w-full max-w-[320px] rounded-[32px] overflow-hidden shadow-[0_24px_60px_rgba(15,23,42,0.12)]"
       >
-        <div className="bg-white dark:bg-gray-900 p-6 space-y-5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-500 flex items-center justify-center">
-              <span className="material-icons-round">delete_outline</span>
+        <div className="bg-white dark:bg-gray-900 px-6 pt-8 pb-6 text-center">
+          <div className="relative w-20 h-20 mx-auto mb-4">
+            <div className="w-20 h-20 rounded-full bg-[#FFEFE8] flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center text-[#FF7A66]">
+                <span className="material-icons-round text-2xl">delete_outline</span>
+              </div>
             </div>
-            <div>
-              <h3 className="text-lg font-bold text-gray-800 dark:text-white">确认删除</h3>
-              <p className="text-xs text-gray-400">该操作无法撤销</p>
+            <div className="absolute top-0 right-1 w-6 h-6 rounded-full bg-[#FFD166] text-white text-xs font-bold flex items-center justify-center">
+              !
             </div>
           </div>
-          <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-500">
-            任务 “{deleteTarget?.name ?? ''}” 将从今日清单中移除。
-          </div>
-          <div className="flex items-center justify-end gap-3">
-            <Button variant="ghost" onClick={() => setIsDeleteOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleDeleteConfirm}>
+          <h3 className="text-lg font-bold text-gray-800 dark:text-white">确定要删除吗?</h3>
+          <p className="text-xs text-gray-400 mt-2">删除后，该任务的专注记录也会被删除哦</p>
+          <div className="mt-6 space-y-3">
+            <button
+              type="button"
+              onClick={handleDeleteConfirm}
+              className="w-full py-3 rounded-full bg-[#FF7A66] text-white font-semibold shadow-lg shadow-orange-200/70 active:scale-95 transition"
+            >
               确认删除
-            </Button>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsDeleteOpen(false)}
+              className="w-full py-3 rounded-full bg-gray-100 text-gray-500 font-semibold active:scale-95 transition"
+            >
+              我再想想
+            </button>
           </div>
         </div>
       </Modal>
