@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useMemo,
+  useCallback,
+  Suspense,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MOCK_TASKS, TASK_CONFIG } from "../../lib/constants";
 import type { Task, AppView } from "../../types";
@@ -444,8 +451,8 @@ function TimerComponent() {
 
 export default function TimerPage() {
   return (
-    <React.Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<div>Loading...</div>}>
       <TimerComponent />
-    </React.Suspense>
+    </Suspense>
   );
 }
